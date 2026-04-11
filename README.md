@@ -55,6 +55,11 @@ cd windows
 makensis installer.nsi
 ```
 
+GitHub Actions:
+
+- Push to `main` will build the Windows portable package and NSIS installer, then upload them as workflow artifacts.
+- Tag like `v0.1.0` will also publish those artifacts to a GitHub Release.
+
 Chinese
 
 Meeting Float 是一个基于 Sciter JS 的轻量会议助手，目标形态是小型悬浮窗桌面程序，支持托盘、可配置语音转文字模型、可配置大语言模型、阶段性总结和会议纪要生成。
@@ -108,3 +113,8 @@ Meeting Float 是一个基于 Sciter JS 的轻量会议助手，目标形态是�
 cd windows
 makensis installer.nsi
 ```
+
+GitHub Actions：
+
+- 推送到 `main` 会自动构建 Windows 便携包和 NSIS 安装包，并上传为 workflow artifacts。
+- 打 `v0.1.0` 这类 tag 时，还会自动发布到 GitHub Release。
