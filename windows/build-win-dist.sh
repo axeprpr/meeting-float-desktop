@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${APP_VERSION:-$(sed -n 's/.*\"version\": \"\\([^\"]*\\)\".*/\\1/p' "$ROOT/package.json" | head -n1)}"
+VERSION="${APP_VERSION:-$(node -p "require('$ROOT/package.json').version")}"
 DIST="$ROOT/dist/win-x64"
 ZIP="$ROOT/dist/meeting-float-sciter-v${VERSION}-win-x64.zip"
 

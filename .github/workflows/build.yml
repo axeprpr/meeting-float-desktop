@@ -30,7 +30,7 @@ jobs:
         run: |
           APP_VERSION="${{ github.ref_type == 'tag' && github.ref_name || '' }}"
           if [ -z "${APP_VERSION}" ]; then
-            APP_VERSION="$(sed -n 's/.*\"version\": \"\\([^\"]*\\)\".*/\\1/p' package.json | head -n1)"
+            APP_VERSION="$(node -p "require('./package.json').version")"
           else
             APP_VERSION="${APP_VERSION#v}"
           fi
