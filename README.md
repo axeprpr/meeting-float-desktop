@@ -65,6 +65,7 @@ GitHub Actions:
 
 - Push to `main` will build the Windows portable package and NSIS installer, then upload them as workflow artifacts.
 - Tag like `v0.1.0` will also publish those artifacts to a GitHub Release.
+- Tag version must match `package.json` version.
 
 Chinese
 
@@ -130,3 +131,4 @@ GitHub Actions：
 
 - 推送到 `main` 会自动构建 Windows 便携包和 NSIS 安装包，并上传为 workflow artifacts。
 - 打 `v0.1.0` 这类 tag 时，还会自动发布到 GitHub Release。
+- tag 版本必须与 `package.json` 里的版本一致。
