@@ -15,8 +15,6 @@ permissions:
 jobs:
   build-windows:
     runs-on: ubuntu-latest
-    env:
-      APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
 
     steps:
       - name: Checkout
@@ -28,13 +26,16 @@ jobs:
           sudo apt-get install -y nsis zip
 
       - name: Resolve version
+        id: version
         run: |
+          APP_VERSION="${{ github.ref_type == 'tag' && github.ref_name || '' }}"
           if [ -z "${APP_VERSION}" ]; then
             APP_VERSION="$(sed -n 's/.*\"version\": \"\\([^\"]*\\)\".*/\\1/p' package.json | head -n1)"
           else
             APP_VERSION="${APP_VERSION#v}"
           fi
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build Windows distribution
         run: ./windows/build-win-dist.sh
@@ -47,17 +48,17 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: meeting-float-sciter-win-x64-v${{ env.APP_VERSION }}
+          name: meeting-float-sciter-win-x64-v${{ steps.version.outputs.app_version }}
           path: |
-            dist/meeting-float-sciter-v${{ env.APP_VERSION }}-win-x64.zip
-            dist/Meeting-Float-${{ env.APP_VERSION }}-Setup.exe
+            dist/meeting-float-sciter-v${{ steps.version.outputs.app_version }}-win-x64.zip
+            dist/Meeting-Float-${{ steps.version.outputs.app_version }}-Setup.exe
           if-no-files-found: error
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Meeting Float v${{ env.APP_VERSION }}
+          name: Meeting Float v${{ steps.version.outputs.app_version }}
           files: |
-            dist/meeting-float-sciter-v${{ env.APP_VERSION }}-win-x64.zip
-            dist/Meeting-Float-${{ env.APP_VERSION }}-Setup.exe
+            dist/meeting-float-sciter-v${{ steps.version.outputs.app_version }}-win-x64.zip
+            dist/Meeting-Float-${{ steps.version.outputs.app_version }}-Setup.exe
