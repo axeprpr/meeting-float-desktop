@@ -2,7 +2,9 @@ Unicode True
 ManifestDPIAware True
 
 !define APP_NAME "Meeting Float"
+!ifndef APP_VERSION
 !define APP_VERSION "0.1.0"
+!endif
 !define APP_PUBLISHER "OpenAI Codex"
 !define APP_EXE "start.bat"
 !define DIST_DIR "..\dist\win-x64"

@@ -48,6 +48,12 @@ Build Windows distribution:
 ./windows/build-win-dist.sh
 ```
 
+Build Windows distribution with a specific version:
+
+```bash
+APP_VERSION=0.1.1 ./windows/build-win-dist.sh
+```
+
 Build NSIS installer:
 
 ```bash
@@ -105,6 +111,12 @@ Meeting Float 是一个基于 Sciter JS 的轻量会议助手，目标形态是�
 
 ```bash
 ./windows/build-win-dist.sh
+```
+
+按指定版本构建 Windows 分发目录：
+
+```bash
+APP_VERSION=0.1.1 ./windows/build-win-dist.sh
 ```
 
 构建 NSIS 安装包：

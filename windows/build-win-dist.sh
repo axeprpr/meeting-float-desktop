@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERSION="${APP_VERSION:-$(sed -n 's/.*\"version\": \"\\([^\"]*\\)\".*/\\1/p' "$ROOT/package.json" | head -n1)}"
 DIST="$ROOT/dist/win-x64"
-ZIP="$ROOT/dist/meeting-float-sciter-v0.1.0-win-x64.zip"
+ZIP="$ROOT/dist/meeting-float-sciter-v${VERSION}-win-x64.zip"
 
 mkdir -p "$DIST/runtime" "$DIST/modules" "$ROOT/dist"
 rm -rf "$DIST"
