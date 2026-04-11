@@ -1,0 +1,204 @@
+<!doctype html>
+<html
+  window-frame="solid-with-shadow"
+  window-title="Meeting Float"
+  window-width="428dip"
+  window-height="760dip"
+  window-min-width="392dip"
+  window-min-height="620dip"
+  theme="light"
+>
+  <head>
+    <meta charset="utf-8" />
+    <title>Meeting Float</title>
+    <link rel="stylesheet" href="app.css" />
+    <script type="module">
+      import * as sys from "@sys";
+      import * as env from "@env";
+
+      const debugLogPath = `${env.TMPDIR || env.TEMP || env.TMP || "/tmp"}/meeting-float-debug.log`;
+
+      function appendDebugLog(message) {
+        try {
+          const file = sys.fs.openSync(debugLogPath, "a");
+          file.writeSync(new TextEncoder().encode(`${new Date().toISOString()} ${message}\n`));
+          file.closeSync();
+        } catch (error) {
+          console.log(String(error));
+        }
+      }
+
+      globalThis.__mfDebugLog = appendDebugLog;
+      appendDebugLog("bootstrap:start");
+
+      import("./app.js")
+        .then(() => appendDebugLog("bootstrap:app-loaded"))
+        .catch((error) => {
+          appendDebugLog(`bootstrap:error:${error?.stack || error}`);
+          const mark = document.querySelector(".brand-mark");
+          if (mark) {
+            mark.style.background = "#d64545";
+            mark.style.boxShadow = "0 0 18dip rgba(214, 69, 69, 0.6)";
+          }
+          const statusLine = document.querySelector("#statusLine");
+          if (statusLine) {
+            statusLine.textContent = "启动失败，请看日志";
+          }
+          const transcriptBox = document.querySelector("#transcriptBox");
+          if (transcriptBox) {
+            transcriptBox.style.background = "#fff7f7";
+            transcriptBox.style.color = "#5a1515";
+            transcriptBox.style.border = "1dip solid #f0b3b3";
+            transcriptBox.textContent = String(error?.stack || error);
+          }
+        });
+    </script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="titlebar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div>
+            <h1>Meeting Float</h1>
+            <p id="statusLine">待命</p>
+          </div>
+        </div>
+        <div class="window-actions">
+          <button id="pinBtn" class="ghost">置顶</button>
+          <button id="hideBtn" class="ghost">托盘</button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-left">
+          <div class="timer-wrap">
+            <div id="recordDot" class="record-dot idle"></div>
+            <div id="timerText" class="timer-text">00:00:00</div>
+          </div>
+          <div class="session-meta">
+            <div id="sessionTitle" class="session-title">未开始会议</div>
+            <div id="sessionStats" class="session-stats">0 段转写 · 0 次总结</div>
+          </div>
+        </div>
+        <div class="hero-right">
+          <button id="startBtn" class="primary">开始</button>
+          <button id="pauseBtn" class="secondary" disabled>暂停</button>
+          <button id="stopBtn" class="danger" disabled>结束</button>
+        </div>
+      </section>
+
+      <section class="panel config-panel">
+        <div class="panel-head">
+          <h2>模型配置</h2>
+          <button id="toggleConfigBtn" class="ghost compact">展开</button>
+        </div>
+        <div id="configBody" class="config-body collapsed">
+          <label>
+            <span>会议标题</span>
+            <input id="meetingTitleInput" type="text" placeholder="例如：项目周会" />
+          </label>
+          <div class="grid two">
+            <label>
+              <span>STT Base URL</span>
+              <input id="sttBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
+            </label>
+            <label>
+              <span>STT Model</span>
+              <input id="sttModelInput" type="text" placeholder="whisper-1" />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>STT API Key</span>
+              <input id="sttApiKeyInput" type="password" placeholder="可为空" />
+            </label>
+            <label>
+              <span>语言</span>
+              <input id="languageInput" type="text" placeholder="zh" />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>LLM Base URL</span>
+              <input id="llmBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
+            </label>
+            <label>
+              <span>LLM Model</span>
+              <input id="llmModelInput" type="text" placeholder="gpt-4o-mini" />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>LLM API Key</span>
+              <input id="llmApiKeyInput" type="password" placeholder="可为空" />
+            </label>
+            <label>
+              <span>分片秒数</span>
+              <input id="chunkSecondsInput" type="number" min="5" max="120" step="1" />
+            </label>
+          </div>
+          <div class="grid two">
+            <label>
+              <span>总结间隔(分钟)</span>
+              <input id="summaryIntervalInput" type="number" min="1" max="120" step="1" />
+            </label>
+            <label>
+              <span>系统提示语</span>
+              <input id="systemPromptInput" type="text" placeholder="给总结和纪要的统一风格要求" />
+            </label>
+          </div>
+          <label>
+            <span>总结风格</span>
+            <textarea id="summaryPromptInput" rows="4"></textarea>
+          </label>
+          <label>
+            <span>会议纪要风格</span>
+            <textarea id="minutesPromptInput" rows="5"></textarea>
+          </label>
+          <div class="config-actions">
+            <button id="mockConfigBtn" class="ghost">Mock 联调</button>
+            <button id="saveConfigBtn" class="primary">保存配置</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel transcript-panel">
+        <div class="panel-head">
+          <h2>实时记录</h2>
+          <div class="panel-actions">
+            <button id="copyTranscriptBtn" class="ghost compact">复制</button>
+          </div>
+        </div>
+        <div id="transcriptBox" class="scroll-box transcript-box">
+          <div class="placeholder">会议开始后，这里会持续出现转写结果。</div>
+        </div>
+      </section>
+
+      <section class="panel summary-panel">
+        <div class="panel-head">
+          <h2>阶段总结</h2>
+          <div class="panel-actions">
+            <button id="manualSummaryBtn" class="ghost compact" disabled>立即总结</button>
+          </div>
+        </div>
+        <div id="summaryBox" class="scroll-box summary-box">
+          <div class="placeholder">总结会按设定间隔自动生成。</div>
+        </div>
+      </section>
+
+      <section class="panel minutes-panel">
+        <div class="panel-head">
+          <h2>会议纪要</h2>
+          <div class="panel-actions">
+            <button id="generateMinutesBtn" class="ghost compact" disabled>生成纪要</button>
+            <button id="exportMinutesBtn" class="ghost compact" disabled>导出</button>
+          </div>
+        </div>
+        <div id="minutesBox" class="scroll-box minutes-box">
+          <div class="placeholder">结束会议后自动生成，可再次手动重生成。</div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

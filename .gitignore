@@ -1,0 +1,11 @@
+dist/
+runtime/
+*.zip
+*.exe
+*.dll
+*.so
+*.db
+*.png
+*.log
+probe-fs-use/
+__pycache__/

@@ -1,0 +1,324 @@
+:root {
+  color-scheme: light;
+  font: system;
+  color: #f4ecdf;
+  background: #241f1b;
+  width: *;
+  height: *;
+  overflow: hidden;
+  theme-accent: #e46746;
+}
+
+html,
+body {
+  margin: 0;
+  width: *;
+  height: *;
+  background:
+    radial-gradient(circle at top left, rgba(240, 115, 77, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(255, 204, 120, 0.16), transparent 28%),
+    linear-gradient(180deg, #231d18, #14110f 60%, #0d0b09);
+}
+
+body {
+  overflow: hidden;
+}
+
+.shell {
+  flow: vertical;
+  width: *;
+  height: *;
+  padding: 18dip;
+  border-spacing: 14dip;
+  overflow: hidden-scroll;
+}
+
+.titlebar,
+.hero,
+.panel,
+.scroll-box,
+input,
+textarea,
+button {
+  border-radius: 18dip;
+}
+
+.titlebar,
+.hero,
+.panel {
+  background: rgba(255, 248, 240, 0.06);
+  border: 1dip solid rgba(255, 236, 218, 0.08);
+  box-shadow: 0 22dip 38dip rgba(0, 0, 0, 0.22);
+}
+
+.titlebar {
+  flow: horizontal;
+  horizontal-align: stretch;
+  vertical-align: middle;
+  padding: 14dip 16dip;
+}
+
+.brand {
+  flow: horizontal;
+  width: *;
+  border-spacing: 12dip;
+  vertical-align: middle;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 19dip;
+  font-weight: 700;
+}
+
+.brand p {
+  margin: 4dip 0 0 0;
+  color: rgba(244, 236, 223, 0.68);
+  font-size: 12dip;
+}
+
+.brand-mark {
+  width: 16dip;
+  height: 16dip;
+  margin: 8dip 0 0 0;
+  border-radius: 8dip;
+  background: linear-gradient(180deg, #ffd179, #e46746);
+  box-shadow: 0 0 18dip rgba(228, 103, 70, 0.6);
+}
+
+.window-actions,
+.hero-right,
+.panel-actions,
+.config-actions {
+  flow: horizontal;
+  border-spacing: 8dip;
+}
+
+button {
+  height: 38dip;
+  padding: 0 14dip;
+  border: 1dip solid transparent;
+  color: #fff9f1;
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1dip);
+}
+
+button:disabled {
+  opacity: 0.38;
+  transform: none;
+}
+
+button.primary {
+  background: linear-gradient(180deg, #ea7550, #d65232);
+  border-color: rgba(255, 214, 185, 0.16);
+}
+
+button.secondary {
+  background: linear-gradient(180deg, rgba(112, 88, 61, 0.88), rgba(77, 56, 39, 0.88));
+}
+
+button.danger {
+  background: linear-gradient(180deg, #9f2f2d, #7f211d);
+}
+
+button.ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 236, 218, 0.08);
+}
+
+button.compact {
+  height: 32dip;
+  padding: 0 12dip;
+  font-size: 12dip;
+}
+
+.hero {
+  flow: horizontal;
+  padding: 18dip;
+  border-spacing: 16dip;
+}
+
+.hero-left {
+  width: *;
+  flow: vertical;
+  border-spacing: 10dip;
+}
+
+.timer-wrap {
+  flow: horizontal;
+  vertical-align: middle;
+  border-spacing: 10dip;
+}
+
+.record-dot {
+  width: 14dip;
+  height: 14dip;
+  border-radius: 7dip;
+  margin: 2dip 0 0 0;
+}
+
+.record-dot.idle {
+  background: rgba(255, 236, 218, 0.35);
+}
+
+.record-dot.live {
+  background: #ff5f4d;
+  box-shadow: 0 0 16dip rgba(255, 95, 77, 0.72);
+}
+
+.record-dot.paused {
+  background: #f0bc62;
+  box-shadow: 0 0 16dip rgba(240, 188, 98, 0.55);
+}
+
+.timer-text {
+  font-size: 33dip;
+  font-weight: 800;
+  letter-spacing: 1dip;
+}
+
+.session-title {
+  font-size: 14dip;
+  font-weight: 700;
+}
+
+.session-stats {
+  color: rgba(244, 236, 223, 0.65);
+  font-size: 12dip;
+}
+
+.panel {
+  flow: vertical;
+  border-spacing: 12dip;
+  padding: 14dip;
+}
+
+.panel-head {
+  flow: horizontal;
+  horizontal-align: stretch;
+  vertical-align: middle;
+}
+
+.panel-head h2 {
+  width: *;
+  margin: 0;
+  font-size: 14dip;
+  font-weight: 700;
+}
+
+.config-body {
+  flow: vertical;
+  border-spacing: 10dip;
+  opacity: 1;
+  visibility: visible;
+}
+
+.config-body.collapsed {
+  visibility: none;
+  height: 0;
+  border-spacing: 0;
+}
+
+label {
+  flow: vertical;
+  border-spacing: 6dip;
+}
+
+label > span {
+  color: rgba(244, 236, 223, 0.74);
+  font-size: 12dip;
+}
+
+.grid.two {
+  flow: horizontal;
+  border-spacing: 10dip;
+}
+
+.grid.two > label {
+  width: *;
+}
+
+input,
+textarea {
+  width: *;
+  padding: 10dip 12dip;
+  border: 1dip solid rgba(255, 236, 218, 0.08);
+  background: rgba(8, 7, 6, 0.28);
+  color: #fff6eb;
+  font-size: 12dip;
+}
+
+textarea {
+  height: 84dip;
+  resize: none;
+}
+
+.scroll-box {
+  min-height: 132dip;
+  padding: 12dip;
+  background: rgba(10, 8, 7, 0.3);
+  border: 1dip solid rgba(255, 236, 218, 0.06);
+  overflow: hidden-scroll;
+}
+
+.minutes-box {
+  min-height: 170dip;
+}
+
+.placeholder {
+  color: rgba(244, 236, 223, 0.48);
+  font-size: 12dip;
+  line-height: 1.6em;
+}
+
+.segment {
+  margin: 0 0 10dip 0;
+  padding: 0 0 10dip 0;
+  border-bottom: 1dip solid rgba(255, 236, 218, 0.06);
+}
+
+.segment:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.segment-time {
+  color: #f0bc62;
+  font-size: 11dip;
+  margin-bottom: 5dip;
+}
+
+.segment-text,
+.summary-item,
+.minutes-content {
+  line-height: 1.65em;
+  white-space: pre-wrap;
+}
+
+.summary-item {
+  margin: 0 0 14dip 0;
+  padding: 0 0 14dip 0;
+  border-bottom: 1dip solid rgba(255, 236, 218, 0.06);
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.summary-head {
+  color: #ffd179;
+  font-size: 11dip;
+  margin-bottom: 6dip;
+}
+
+.minutes-content {
+  font-size: 12dip;
+}
