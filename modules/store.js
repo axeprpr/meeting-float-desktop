@@ -2,9 +2,9 @@ const DEFAULT_CONFIG = {
   meetingTitle: "",
   exportDir: "",
   stt: {
-    baseUrl: "",
+    baseUrl: "ws://192.168.3.42:10095",
     apiKey: "",
-    model: "whisper-1",
+    model: "funasr-2pass",
     language: "zh",
   },
   llm: {

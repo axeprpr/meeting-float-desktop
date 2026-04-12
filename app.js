@@ -22,19 +22,19 @@ const state = {
   mockPaused: false,
   mockChunkHandle: null,
   mediaSupport: {
-    mediaDevices: false,
-    getUserMedia: false,
-    mediaRecorder: false,
+    helperReady: false,
+    message: "本地录音助手未连接",
   },
   startedAtMs: 0,
   summaryTranscriptIndex: 0,
   queue: Promise.resolve(),
   timerHandle: null,
   summaryHandle: null,
+  livePreviewText: "",
   settingsSavedAtLabel: "",
   providerProbe: {
-    stt: { tone: "", text: "还没有测试 STT。" },
-    llm: { tone: "", text: "还没有测试 LLM。" },
+    stt: { tone: "", text: "还没有测试语音转文字模型。" },
+    llm: { tone: "", text: "还没有测试大语言模型。" },
   },
 };
 
@@ -115,14 +115,6 @@ function setActiveFocusTab(tab) {
   });
   ui.summaryFocusBox.classList.toggle("hidden", tab !== "summary");
   ui.transcriptFocusBox.classList.toggle("hidden", tab !== "transcript");
-}
-
-function detectMediaSupport() {
-  return {
-    mediaDevices: typeof navigator.mediaDevices !== "undefined",
-    getUserMedia: typeof navigator.mediaDevices?.getUserMedia === "function",
-    mediaRecorder: typeof globalThis.MediaRecorder === "function",
-  };
 }
 
 function mockModeEnabled(config) {
@@ -233,9 +225,9 @@ function searchParam(name) {
 
 function renderRuntimeState() {
   const support = state.mediaSupport;
-  const runtimeLabel = `${env.PLATFORM} · media ${support.getUserMedia && support.mediaRecorder ? "ready" : "limited"}`;
+  const runtimeLabel = `${env.PLATFORM} · ${support.message}`;
   ui.runtimePill.textContent = runtimeLabel;
-  ui.modePill.textContent = mockModeEnabled(state.config) ? "Mock 模式" : "标准模式";
+  ui.modePill.textContent = mockModeEnabled(state.config) ? "联调模式" : "正式模式";
 }
 
 function renderSaveState() {
@@ -289,7 +281,7 @@ function renderHeader() {
   } else if (state.isMockMode ? state.mockPaused : recorder.isPaused()) {
     setStage("paused", "已暂停");
   } else {
-    setStage("live", state.isMockMode ? "Mock 进行中" : "实时记录中");
+    setStage("live", state.isMockMode ? "联调进行中" : "实时记录中");
   }
 }
 
@@ -317,24 +309,37 @@ function renderSummaryFocus() {
 
 function renderTranscriptFocus() {
   const transcript = state.session?.transcript || [];
-  if (!transcript.length) {
+  if (!transcript.length && !state.livePreviewText) {
     ui.transcriptFocusBox.innerHTML =
       '<div class="placeholder">会议进行后，这里显示最新转写记录。</div>';
     return;
   }
 
-  ui.transcriptFocusBox.innerHTML = transcript
-    .slice(-8)
-    .reverse()
-    .map(
-      (item) => `
-        <div class="segment">
-          <div class="segment-time">${escapeHtml(item.timeLabel)}</div>
-          <div>${escapeHtml(item.text)}</div>
-        </div>
-      `
-    )
-    .join("");
+  const blocks = [];
+  if (state.livePreviewText) {
+    blocks.push(`
+      <div class="segment">
+        <div class="segment-time">正在识别</div>
+        <div>${escapeHtml(state.livePreviewText)}</div>
+      </div>
+    `);
+  }
+
+  blocks.push(
+    ...transcript
+      .slice(-8)
+      .reverse()
+      .map(
+        (item) => `
+          <div class="segment">
+            <div class="segment-time">${escapeHtml(item.timeLabel)}</div>
+            <div>${escapeHtml(item.text)}</div>
+          </div>
+        `
+      )
+  );
+
+  ui.transcriptFocusBox.innerHTML = blocks.join("");
 }
 
 function renderMinutesPreview() {
@@ -463,20 +468,19 @@ function clearErrorState() {
   ui.minutesPreviewBox.classList.remove("error-box");
 }
 
-async function handleChunk(blob) {
+async function handleTranscript(text) {
   if (!state.session || !state.isRecording) return;
 
   state.queue = state.queue.then(async () => {
     try {
-      setStatus("正在转写...");
-      const text = await api.transcribe(blob, state.config.stt);
       if (!text) return;
 
       state.session.transcript.push({
         timeLabel: new Date().toLocaleTimeString(),
         text,
       });
-      setStatus(state.isMockMode ? "Mock 联调中" : "录音中");
+      state.livePreviewText = "";
+      setStatus(state.isMockMode ? "联调进行中" : "录音中");
       persistSession();
     } catch (error) {
       appendError(`转写失败: ${error.message || error}`);
@@ -484,6 +488,11 @@ async function handleChunk(blob) {
   });
 
   await state.queue;
+}
+
+function handleTranscriptPreview(text) {
+  state.livePreviewText = text || "";
+  renderTranscriptFocus();
 }
 
 async function generateSummary(force = false) {
@@ -553,9 +562,13 @@ async function generateTitle() {
 function startMockFeed() {
   clearInterval(state.mockChunkHandle);
   state.mockPaused = false;
-  state.mockChunkHandle = setInterval(() => {
+  state.mockChunkHandle = setInterval(async () => {
     if (!state.isRecording || state.mockPaused) return;
-    handleChunk(new Blob([`mock-${Date.now()}`], { type: "audio/webm" }));
+    const text = await api.transcribe(
+      new Blob([`mock-${Date.now()}`], { type: "audio/webm" }),
+      state.config.stt
+    );
+    await handleTranscript(text);
   }, Math.max(2000, Number(state.config.chunkSeconds || 4) * 1000));
 }
 
@@ -565,24 +578,47 @@ function stopMockFeed() {
   state.mockPaused = false;
 }
 
+async function refreshBridgeState() {
+  if (mockModeEnabled(state.config)) {
+    state.mediaSupport = {
+      helperReady: true,
+      message: "联调模式可用",
+    };
+    renderRuntimeState();
+    return;
+  }
+
+  try {
+    const health = await recorder.health();
+    state.mediaSupport = {
+      helperReady: true,
+      message: health.status === "recording" ? "本地录音助手运行中" : "本地录音助手已就绪",
+    };
+  } catch {
+    state.mediaSupport = {
+      helperReady: false,
+      message: "本地录音助手未启动",
+    };
+  }
+
+  renderRuntimeState();
+}
+
 async function startMeeting() {
   if (state.isRecording) return;
 
   saveConfig();
   clearErrorState();
   state.isMockMode = mockModeEnabled(state.config);
-  state.mediaSupport = detectMediaSupport();
-  renderRuntimeState();
+  state.livePreviewText = "";
+  await refreshBridgeState();
 
-  if (
-    !state.isMockMode &&
-    (!state.mediaSupport.getUserMedia || !state.mediaSupport.mediaRecorder)
-  ) {
-    setStatus("当前 runtime 不支持真实录音");
+  if (!state.isMockMode && !String(state.config.stt.baseUrl || "").trim()) {
+    setStatus("转写服务地址未配置");
     ui.summaryFocusBox.innerHTML =
-      '<div class="placeholder">当前运行时不支持 getUserMedia / MediaRecorder，无法直接启动真实录音。</div>';
+      '<div class="placeholder">请先在设置页填写 FunASR 的 WebSocket 地址。</div>';
     ui.transcriptFocusBox.innerHTML =
-      '<div class="placeholder">请在支持媒体 API 的 runtime 下测试，或切到自动联调模式。</div>';
+      '<div class="placeholder">录音依赖本地录音助手和私有 FunASR 服务。</div>';
     return;
   }
 
@@ -598,12 +634,13 @@ async function startMeeting() {
     if (state.isMockMode) {
       startMockFeed();
     } else {
-      await recorder.start(state.config.chunkSeconds, handleChunk);
+      await recorder.configure(state.config.stt);
+      await recorder.start(state.config.chunkSeconds, handleTranscript, handleTranscriptPreview);
     }
 
     startTimerLoop();
     startSummaryLoop();
-    setStatus(state.isMockMode ? "Mock 联调中" : "录音中");
+    setStatus(state.isMockMode ? "联调进行中" : "录音中");
     renderAll();
   } catch (error) {
     state.isRecording = false;
@@ -643,43 +680,46 @@ async function stopMeeting() {
   }
 
   setDot("idle");
+  state.livePreviewText = "";
+  await refreshBridgeState();
   persistSession();
   renderAll();
 }
 
-function togglePause() {
+async function togglePause() {
   if (!state.session) return;
 
   if (state.isMockMode) {
     state.mockPaused = !state.mockPaused;
-    setStatus(state.mockPaused ? "Mock 已暂停" : "Mock 联调中");
+    setStatus(state.mockPaused ? "联调已暂停" : "联调进行中");
     setDot(state.mockPaused ? "paused" : "live");
   } else if (recorder.isPaused()) {
-    recorder.resume();
+    await recorder.resume();
     setStatus("录音中");
     setDot("live");
   } else {
-    recorder.pause();
+    await recorder.pause();
     setStatus("已暂停");
     setDot("paused");
   }
 
+  await refreshBridgeState();
   renderAll();
 }
 
 async function testProvider(kind) {
   saveConfig();
   const config = kind === "stt" ? state.config.stt : state.config.llm;
-  const label = kind === "stt" ? "STT" : "LLM";
+  const label = kind === "stt" ? "语音转文字模型" : "大语言模型";
 
-  state.providerProbe[kind] = {
-    tone: "",
-    text: `正在测试 ${label}...`,
+    state.providerProbe[kind] = {
+      tone: "",
+      text: `正在测试 ${label}...`,
   };
   renderProbeStates();
 
   try {
-    const result = await api.probe(config);
+    const result = kind === "stt" ? await recorder.probe(config) : await api.probe(config);
     state.providerProbe[kind] = {
       tone: result.modelFound ? "ok" : "",
       text: result.message,
@@ -698,6 +738,9 @@ async function testProvider(kind) {
 
 function saveConfig() {
   state.config = readConfigForm();
+  if (!state.config.stt.baseUrl) {
+    state.config.stt.baseUrl = defaultFunASRUrl();
+  }
   store.saveConfig(state.config);
   state.settingsSavedAtLabel = new Date().toLocaleTimeString();
   renderRuntimeState();
@@ -705,11 +748,15 @@ function saveConfig() {
   setStatus("配置已保存");
 }
 
+function defaultFunASRUrl() {
+  return "ws://192.168.3.42:10095";
+}
+
 function markSettingsDirty() {
   state.settingsSavedAtLabel = "";
   state.providerProbe = {
-    stt: { tone: "", text: "配置已变更，请重新测试 STT。" },
-    llm: { tone: "", text: "配置已变更，请重新测试 LLM。" },
+    stt: { tone: "", text: "配置已变更，请重新测试语音转文字模型。" },
+    llm: { tone: "", text: "配置已变更，请重新测试大语言模型。" },
   };
   renderSaveState();
   renderProbeStates();
@@ -740,7 +787,7 @@ function openMinutesWindow() {
   const title = deriveSessionTitle(state.session);
   const minutesWindow = new Window({
     url: minutesUrl,
-    caption: `${title} - 会议纪要`,
+    caption: `${title} - 量界智擎会议助手`,
     width: 760,
     height: 840,
     alignment: 5,
@@ -792,7 +839,7 @@ function setupTray() {
   try {
     Window.this.trayIcon({
       image: createTrayIcon(),
-      text: "Meeting Float",
+      text: "量界智擎会议助手",
     });
     Window.this.on("trayiconclick", restoreFromTray);
   } catch (error) {
@@ -806,7 +853,7 @@ async function maybeRunAutoTest() {
     String(location.hash || "").includes("autotest") ||
     globalThis.__MEETING_FLOAT_AUTOTEST__ === true ||
     String(env.MEETING_FLOAT_AUTOTEST || "") === "1";
-  if (!enabled) return;
+    if (!enabled) return;
   applyHiddenMockConfig();
   await startMeeting();
   setTimeout(() => stopMeeting(), 12000);
@@ -851,7 +898,9 @@ function bindEvents() {
 
 function bootstrap() {
   debugLog("bootstrap:app-bootstrap");
-  state.mediaSupport = detectMediaSupport();
+  if (!state.config.stt.baseUrl) {
+    state.config.stt.baseUrl = defaultFunASRUrl();
+  }
   fillConfigForm(state.config);
   bindEvents();
   setupTray();
@@ -862,12 +911,9 @@ function bootstrap() {
   renderSaveState();
   renderProbeStates();
   syncTimer();
-  if (!state.mediaSupport.getUserMedia || !state.mediaSupport.mediaRecorder) {
-    setStatus(`待命 · ${env.PLATFORM} · 运行时无录音 API`);
-  } else {
-    setStatus(`待命 · ${env.PLATFORM}`);
-  }
+  setStatus(`待命 · ${env.PLATFORM}`);
   renderAll();
+  refreshBridgeState();
   maybeRunAutoTest();
 }
 

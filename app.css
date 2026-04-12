@@ -6,7 +6,7 @@
   width: *;
   height: *;
   overflow: hidden;
-  theme-accent: #0f6cbd;
+  theme-accent: #f97352;
 }
 
 html,
@@ -45,7 +45,7 @@ button,
 .info-pill,
 .stage-badge,
 .focus-tab {
-  border-radius: 16dip;
+  border-radius: 3dip;
 }
 
 .topbar,
@@ -77,8 +77,8 @@ button,
   height: 18dip;
   margin: 6dip 0 0 0;
   border-radius: 9dip;
-  background: linear-gradient(180deg, #62b1ff, #1f70c1);
-  box-shadow: 0 0 18dip rgba(50, 129, 208, 0.6);
+  background: linear-gradient(180deg, #ffd478, #f97352);
+  box-shadow: 0 0 18dip rgba(249, 115, 82, 0.56);
 }
 
 .brand-copy {
@@ -119,11 +119,16 @@ button,
   border-spacing: 8dip;
 }
 
+.focus-tabs {
+  width: *;
+}
+
 .window-btn {
-  width: 34dip;
+  width: auto;
+  min-width: 64dip;
   height: 30dip;
-  padding: 0;
-  font-size: 14dip;
+  padding: 0 12dip;
+  font-size: 12dip;
 }
 
 .window-btn.danger {
@@ -153,9 +158,9 @@ button,
 
 .nav-chip.active,
 .focus-tab.active {
-  background: linear-gradient(180deg, rgba(48, 126, 210, 0.96), rgba(20, 99, 184, 0.96));
+  background: linear-gradient(180deg, rgba(249, 133, 95, 0.96), rgba(229, 95, 57, 0.96));
   color: #f7fbff;
-  box-shadow: 0 10dip 18dip rgba(20, 99, 184, 0.28);
+  box-shadow: 0 10dip 18dip rgba(229, 95, 57, 0.28);
 }
 
 .page {
@@ -202,7 +207,7 @@ button,
   width: 230dip;
   border-spacing: 6dip;
   padding: 16dip;
-  border-radius: 20dip;
+  border-radius: 3dip;
   background: rgba(4, 10, 17, 0.42);
   border: 1dip solid rgba(255, 255, 255, 0.06);
 }
@@ -298,7 +303,7 @@ button.compact {
 }
 
 button.primary {
-  background: linear-gradient(180deg, #2f7bcd, #1b63b8);
+  background: linear-gradient(180deg, #fb855f, #e55f39);
 }
 
 button.secondary {
@@ -334,6 +339,7 @@ button.ghost {
   horizontal-align: stretch;
   vertical-align: middle;
 }
+
 
 .focus-panel,
 .minutes-preview-panel,
@@ -374,7 +380,7 @@ button.ghost {
 .minutes-content {
   margin: 0 0 14dip 0;
   padding: 14dip;
-  border-radius: 14dip;
+  border-radius: 3dip;
   background: rgba(255, 255, 255, 0.04);
   white-space: pre-wrap;
   line-height: 1.6;
@@ -390,7 +396,7 @@ button.ghost {
 .history-table-wrap {
   width: *;
   height: *;
-  border-radius: 16dip;
+  border-radius: 3dip;
   background: rgba(4, 11, 18, 0.42);
   border: 1dip solid rgba(255, 255, 255, 0.06);
   overflow: auto;
@@ -433,7 +439,7 @@ button.ghost {
   flow: vertical;
   border-spacing: 12dip;
   padding: 16dip;
-  border-radius: 18dip;
+  border-radius: 3dip;
   background: rgba(4, 11, 18, 0.42);
   border: 1dip solid rgba(255, 255, 255, 0.06);
 }

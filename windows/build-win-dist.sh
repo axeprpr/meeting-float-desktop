@@ -10,6 +10,12 @@ mkdir -p "$DIST/modules" "$ROOT/dist"
 rm -rf "$DIST"
 mkdir -p "$DIST/modules"
 
+(
+  cd "$ROOT/helper"
+  GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
+    go build -o "$DIST/meeting-helper.exe" .
+)
+
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/scapp.exe -o "$DIST/Meeting Float.exe"
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/sciter.dll -o "$DIST/sciter.dll"
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/inspector.exe -o "$DIST/inspector.exe"
@@ -24,20 +30,37 @@ cp "$ROOT/TESTING.md" "$DIST/"
 cp "$ROOT/package.json" "$DIST/"
 cp "$ROOT/modules/"*.js "$DIST/modules/"
 
-cat > "$DIST/Mock Autotest.vbs" <<'VBS'
+cat > "$DIST/start.vbs" <<'VBS'
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 shell.CurrentDirectory = dir
+shell.Run """" & dir & "\meeting-helper.exe""", 0, False
+WScript.Sleep 1200
+shell.Run """" & dir & "\Meeting Float.exe"" """ & dir & "\index.htm""", 0, False
+VBS
+
+cat > "$DIST/autotest.vbs" <<'VBS'
+Set shell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+dir = fso.GetParentFolderName(WScript.ScriptFullName)
+shell.CurrentDirectory = dir
+shell.Run """" & dir & "\meeting-helper.exe""", 0, False
+WScript.Sleep 1200
 shell.Run """" & dir & "\Meeting Float.exe"" """ & dir & "\autotest.htm""", 0, False
 VBS
 
 cat > "$DIST/start.bat" <<'BAT'
 @echo off
-start "" "%~dp0Meeting Float.exe"
+start "" wscript.exe "%~dp0start.vbs"
 BAT
 
-chmod 0644 "$DIST/start.bat" "$DIST/Mock Autotest.vbs"
+cat > "$DIST/autotest.bat" <<'BAT'
+@echo off
+start "" wscript.exe "%~dp0autotest.vbs"
+BAT
+
+chmod 0644 "$DIST/start.bat" "$DIST/autotest.bat" "$DIST/start.vbs" "$DIST/autotest.vbs"
 
 rm -f "$ZIP"
 (

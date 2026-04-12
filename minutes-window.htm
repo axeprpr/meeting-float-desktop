@@ -9,7 +9,7 @@
 >
   <head>
     <meta charset="utf-8" />
-    <title>会议纪要</title>
+    <title>量界智擎会议助手 - 会议纪要</title>
     <style>
       :root {
         color-scheme: light;
@@ -75,7 +75,7 @@
     <script>
       function bootstrapMinutesWindow() {
         const payload = Window.this.parameters || {};
-        document.title = payload.title ? `${payload.title} - 会议纪要` : "会议纪要";
+        document.title = payload.title ? `${payload.title} - 量界智擎会议助手` : "量界智擎会议助手 - 会议纪要";
         document.querySelector("#title").textContent = payload.title || "未命名会议";
         document.querySelector("#meta").textContent =
           `${payload.startedAtLabel || ""}  ${payload.endedAtLabel ? `至 ${payload.endedAtLabel}` : ""}`.trim();

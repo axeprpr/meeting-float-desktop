@@ -1,7 +1,7 @@
 <!doctype html>
 <html
-  window-frame="solid-with-shadow"
-  window-title="Meeting Float"
+  window-frame="extended"
+  window-title="量界智擎会议助手"
   window-width="700dip"
   window-height="860dip"
   window-min-width="560dip"
@@ -10,7 +10,7 @@
 >
   <head>
     <meta charset="utf-8" />
-    <title>Meeting Float</title>
+    <title>量界智擎会议助手</title>
     <link rel="stylesheet" href="app.css" />
     <script>
       globalThis.__MEETING_FLOAT_AUTOTEST__ = true;
@@ -48,17 +48,17 @@
   <body>
     <main class="shell">
       <header class="topbar">
-        <div class="brand" role="window-caption">
+        <caption class="brand" role="window-caption">
           <div class="brand-mark"></div>
           <div class="brand-copy">
-            <div class="eyebrow">Enterprise Meeting Assistant</div>
-            <h1>Meeting Float</h1>
+            <div class="eyebrow">企业会议记录与纪要助手</div>
+            <h1>量界智擎会议助手</h1>
             <p id="statusLine">待命</p>
           </div>
-        </div>
+        </caption>
         <div class="window-actions">
-          <button id="minimizeBtn" class="window-btn" title="最小化到托盘">_</button>
-          <button id="closeBtn" class="window-btn danger" title="关闭">×</button>
+          <button id="minimizeBtn" class="window-btn ghost" title="最小化到托盘">最小化</button>
+          <button id="closeBtn" class="window-btn danger" title="关闭">关闭</button>
         </div>
       </header>
 
@@ -75,7 +75,7 @@
             <div id="sessionTitle" class="hero-title">未开始会议</div>
             <div class="hero-meta">
               <span id="modePill" class="info-pill">标准模式</span>
-              <span id="runtimePill" class="info-pill subtle">运行时检测中</span>
+              <span id="runtimePill" class="info-pill subtle">环境检测中</span>
             </div>
           </div>
           <div class="timer-cluster">
@@ -89,7 +89,6 @@
           <button id="startBtn" class="primary">开始会议</button>
           <button id="pauseBtn" class="secondary" disabled>暂停</button>
           <button id="stopBtn" class="danger" disabled>结束会议</button>
-          <button id="viewMinutesBtn" class="ghost" disabled>查看会议纪要</button>
         </section>
 
         <section class="panel focus-panel">
@@ -101,6 +100,9 @@
               <button id="transcriptTabBtn" class="focus-tab" data-focus="transcript">
                 最新记录
               </button>
+            </div>
+            <div class="panel-actions">
+              <button id="viewMinutesBtn" class="ghost compact" disabled>查看纪要</button>
             </div>
           </div>
           <div id="summaryFocusBox" class="scroll-box focus-box">
@@ -114,7 +116,7 @@
         <section class="panel minutes-preview-panel">
           <div class="panel-head">
             <h2>会议纪要</h2>
-            <div class="panel-caption">结束会议后会再次调用 LLM 生成正式纪要</div>
+            <div class="panel-caption">结束会议后会再次调用大模型生成正式纪要</div>
           </div>
           <div id="minutesPreviewBox" class="scroll-box minutes-preview-box">
             <div class="placeholder">纪要将在会议结束后生成。</div>
@@ -162,50 +164,50 @@
         <section class="panel settings-panel">
           <div class="settings-group">
             <div class="settings-group-head">
-              <div class="group-title">语音转文字 STT</div>
+              <div class="group-title">语音转文字模型</div>
               <button id="testSttBtn" class="ghost compact">测试</button>
             </div>
-            <div id="sttProbeState" class="probe-state">还没有测试 STT。</div>
+            <div id="sttProbeState" class="probe-state">还没有测试语音转文字模型。</div>
             <div class="grid two">
               <label>
-                <span>Base URL</span>
-                <input id="sttBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
+                <span>接口地址</span>
+                <input id="sttBaseUrlInput" type="text" placeholder="例如：ws://192.168.3.42:10095" />
               </label>
               <label>
-                <span>Model</span>
-                <input id="sttModelInput" type="text" placeholder="whisper-1" />
+                <span>模型名称</span>
+                <input id="sttModelInput" type="text" placeholder="例如：funasr-2pass" />
               </label>
             </div>
             <div class="grid two">
               <label>
-                <span>API Key</span>
+                <span>接口密钥</span>
                 <input id="sttApiKeyInput" type="password" placeholder="可为空" />
               </label>
               <label>
-                <span>Language</span>
-                <input id="languageInput" type="text" placeholder="zh" />
+                <span>识别语言</span>
+                <input id="languageInput" type="text" placeholder="例如：zh" />
               </label>
             </div>
           </div>
 
           <div class="settings-group">
             <div class="settings-group-head">
-              <div class="group-title">大语言模型 LLM</div>
+              <div class="group-title">大语言模型</div>
               <button id="testLlmBtn" class="ghost compact">测试</button>
             </div>
-            <div id="llmProbeState" class="probe-state">还没有测试 LLM。</div>
+            <div id="llmProbeState" class="probe-state">还没有测试大语言模型。</div>
             <div class="grid two">
               <label>
-                <span>Base URL</span>
+                <span>接口地址</span>
                 <input id="llmBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
               </label>
               <label>
-                <span>Model</span>
-                <input id="llmModelInput" type="text" placeholder="gpt-4o-mini" />
+                <span>模型名称</span>
+                <input id="llmModelInput" type="text" placeholder="例如：gpt-4o-mini" />
               </label>
             </div>
             <label>
-              <span>API Key</span>
+              <span>接口密钥</span>
               <input id="llmApiKeyInput" type="password" placeholder="可为空" />
             </label>
           </div>

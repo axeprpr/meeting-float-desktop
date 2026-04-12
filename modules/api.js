@@ -56,7 +56,7 @@ function buildMockSummary(transcriptText) {
     "",
     "关键结论",
     "1. 保持轻量桌面形态，优先保证录音、总结、纪要闭环。",
-    "2. STT 和 LLM 都使用可配置接口，便于切换模型与部署位置。",
+    "2. 语音转文字模型和大语言模型都使用可配置接口，便于切换模型与部署位置。",
     "",
     "待办事项",
     "1. 补录音链路稳定性验证。",
@@ -135,7 +135,7 @@ export class AiClient {
     }
 
     if (!config.baseUrl || !config.model) {
-      throw new Error("STT 配置不完整");
+      throw new Error("语音转文字模型配置不完整");
     }
 
     const file = new File([blob], `chunk-${Date.now()}.webm`, {
@@ -225,7 +225,7 @@ export class AiClient {
 
   async chat(messages, config) {
     if (!config.baseUrl || !config.model) {
-      throw new Error("LLM 配置不完整");
+      throw new Error("大语言模型配置不完整");
     }
 
     const response = await fetch(joinUrl(config.baseUrl, "/chat/completions"), {
