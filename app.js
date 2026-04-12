@@ -1,11 +1,11 @@
 import { AppStore, buildDefaultSession } from "./modules/store.js";
 import { AiClient } from "./modules/api.js";
-import { MeetingRecorder } from "./modules/recorder.js";
+import { createMeetingRecorder } from "./modules/recorder.js";
 import * as env from "@env";
 
 const store = new AppStore();
 const api = new AiClient();
-const recorder = new MeetingRecorder();
+const recorder = createMeetingRecorder();
 
 function debugLog(message) {
   globalThis.__mfDebugLog?.(message);
@@ -23,7 +23,7 @@ const state = {
   mockChunkHandle: null,
   mediaSupport: {
     helperReady: false,
-    message: "本地录音助手未连接",
+    message: "原生录音后端未连接",
   },
   startedAtMs: 0,
   summaryTranscriptIndex: 0,
@@ -36,6 +36,7 @@ const state = {
     stt: { tone: "", text: "还没有测试语音转文字模型。" },
     llm: { tone: "", text: "还没有测试大语言模型。" },
   },
+  mediaProbeText: "",
 };
 
 function $(selector) {
@@ -64,6 +65,7 @@ const ui = {
   settingsSaveState: $("#settingsSaveState"),
   sttProbeState: $("#sttProbeState"),
   llmProbeState: $("#llmProbeState"),
+  mediaProbeState: $("#mediaProbeState"),
   startBtn: $("#startBtn"),
   pauseBtn: $("#pauseBtn"),
   stopBtn: $("#stopBtn"),
@@ -250,6 +252,22 @@ function renderProbeStates() {
     }
     element.textContent = value.text;
   });
+
+  if (ui.mediaProbeState) {
+    ui.mediaProbeState.textContent = state.mediaProbeText;
+  }
+}
+
+function refreshMediaProbe() {
+  const lines = [
+    `recorderBackend: ${recorder.backend || "unknown"}`,
+    `navigator: ${typeof navigator}`,
+    `mediaDevices: ${typeof navigator?.mediaDevices}`,
+    `getUserMedia: ${typeof navigator?.mediaDevices?.getUserMedia}`,
+    `MediaRecorder: ${typeof globalThis.MediaRecorder}`,
+  ];
+  state.mediaProbeText = lines.join(" | ");
+  debugLog(`media-probe:${state.mediaProbeText}`);
 }
 
 function deriveSessionTitle(session) {
@@ -613,12 +631,12 @@ async function refreshBridgeState() {
     const health = await recorder.health();
     state.mediaSupport = {
       helperReady: true,
-      message: health.status === "recording" ? "本地录音助手运行中" : "本地录音助手已就绪",
+      message: health.status === "recording" ? "原生录音后端运行中" : "原生录音后端已就绪",
     };
   } catch {
     state.mediaSupport = {
       helperReady: false,
-      message: "本地录音助手未启动",
+      message: "原生录音后端未启动",
     };
   }
 
@@ -639,7 +657,7 @@ async function startMeeting() {
     ui.summaryFocusBox.innerHTML =
       '<div class="placeholder">请先在设置页填写 FunASR 的 WebSocket 地址。</div>';
     ui.transcriptFocusBox.innerHTML =
-      '<div class="placeholder">录音依赖本地录音助手和私有 FunASR 服务。</div>';
+      '<div class="placeholder">录音依赖内建原生采集和可访问的 FunASR 服务。</div>';
     return;
   }
 
@@ -669,8 +687,11 @@ async function startMeeting() {
     setStatus(state.isMockMode ? "联调进行中" : "录音中");
     renderAll();
   } catch (error) {
+    stopTimerLoop();
+    stopSummaryLoop();
     state.isRecording = false;
     state.session = null;
+    state.livePreviewText = "";
     setDot("idle");
     appendError(`启动失败: ${error.message || error}`);
   }
@@ -775,7 +796,7 @@ function saveConfig() {
 }
 
 function defaultFunASRUrl() {
-  return "ws://192.168.3.42:10095";
+  return "ws://f.axe3.cn:10095";
 }
 
 function markSettingsDirty() {
@@ -924,6 +945,7 @@ function bindEvents() {
 
 function bootstrap() {
   debugLog("bootstrap:app-bootstrap");
+  refreshMediaProbe();
   if (!state.config.stt.baseUrl) {
     state.config.stt.baseUrl = defaultFunASRUrl();
   }

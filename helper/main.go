@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,7 +25,7 @@ const (
 	bytesPerSample    = 2
 	defaultChunkSize  = "8,8,4"
 	defaultMode       = "2pass"
-	defaultFunASRURL  = "ws://192.168.3.42:10095"
+	defaultFunASRURL  = "ws://f.axe3.cn:10095"
 	finalDrainTimeout = 700 * time.Millisecond
 )
 
@@ -141,11 +143,23 @@ func computeChunkBytes(chunkSize string, chunkInterval int) int {
 	return sampleRate * channels * bytesPerSample * ms / 1000
 }
 
-func (r *recorder) start() error {
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+func directWebsocketDialer(timeout time.Duration) websocket.Dialer {
+	// Bypass system and environment proxy for LAN speech service connections.
+	return websocket.Dialer{
+		HandshakeTimeout: timeout,
 		Subprotocols:     []string{"binary"},
+		Proxy: func(*http.Request) (*url.URL, error) {
+			return nil, nil
+		},
+		NetDialContext: (&net.Dialer{
+			Timeout:   timeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
 	}
+}
+
+func (r *recorder) start() error {
+	dialer := directWebsocketDialer(10 * time.Second)
 	conn, _, err := dialer.Dial(r.cfg.FunASRURL, nil)
 	if err != nil {
 		return fmt.Errorf("连接转写服务失败: %w", err)
@@ -424,10 +438,7 @@ func (h *helper) probe(w http.ResponseWriter, r *http.Request) {
 	if req.FunASRURL == "" {
 		req.FunASRURL = h.cfg.FunASRURL
 	}
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 5 * time.Second,
-		Subprotocols:     []string{"binary"},
-	}
+	dialer := directWebsocketDialer(5 * time.Second)
 	conn, _, err := dialer.Dial(req.FunASRURL, nil)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{

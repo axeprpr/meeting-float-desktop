@@ -1,44 +1,64 @@
-# Windows 打包
+# Windows Build
 
-## 目录结构
+## Files
 
-- `windows/installer.nsi`: NSIS 安装脚本
-- `windows/build-win-dist.sh`: 在当前 Linux 机器上组装 Windows 分发目录
-- `dist/win-x64/`: Windows 可分发目录
+- `windows/build-win-dist.ps1`: build Windows distribution on Windows
+- `windows/build-win-dist.sh`: build Windows distribution from Linux
+- `windows/installer.nsi`: NSIS installer script
+- `dist/win-x64/`: portable distribution directory
 
-## 先组装分发目录
+## Build On Windows
 
-```bash
-cd /root/meeting-float-sciter
-./windows/build-win-dist.sh
+From the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\windows\build-win-dist.ps1
 ```
 
-这会下载官方 Sciter Windows x64 runtime，并生成：
+This script will:
 
-- `dist/win-x64/`
-- `dist/meeting-float-sciter-v0.1.0-win-x64.zip`
+- download `llvm-mingw` to `.tools/` if no C compiler is available
+- build `meeting_audio.dll` and `Meeting Float Native.exe`
+- download Sciter Windows runtime files
+- assemble `dist/win-x64/`
+- produce `dist/meeting-float-sciter-v<version>-win-x64.zip`
+- copy `native/windows/meeting_audio/target/release/meeting_audio.dll` if it exists
 
-## 构建 NSIS 安装包
+To override the app version:
 
-如果本机有 `makensis`：
+```powershell
+$env:APP_VERSION = "0.1.4"
+powershell -ExecutionPolicy Bypass -File .\windows\build-win-dist.ps1
+```
 
-```bash
-cd /root/meeting-float-sciter/windows
+## Build Installer
+
+If `makensis` is installed:
+
+```powershell
+cd .\windows
 makensis installer.nsi
 ```
 
-输出：
+Output:
 
-- `dist/Meeting-Float-0.1.0-Setup.exe`
+- `dist/Meeting-Float-<version>-Setup.exe`
 
-## Windows 运行入口
+## Runtime Entry
 
 - `start.bat`
 - `autotest.bat`
 
-## 当前说明
+The Windows package now uses the native host plus `meeting_audio.dll`; the old Go helper is no longer part of the startup path.
 
-- 这是 Windows x64 测试包
-- 默认携带 Sciter `scapp.exe` / `sciter.dll`
-- 真实录音链路仍待接宿主录音桥接
-- `autotest.bat` 可用于快速验证 mock 流程
+## Native DLL Work
+
+The Windows-native audio scaffold lives in:
+
+- `native/windows/meeting_audio/`
+
+Current repository status:
+
+- JS runtime already supports a native recorder backend when a bridge injects `meetingAudioNative`
+- the Rust DLL scaffold exists
+- the Sciter plugin/host shim that injects that object is still not implemented

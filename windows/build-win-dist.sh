@@ -10,12 +10,6 @@ mkdir -p "$DIST/modules" "$ROOT/dist"
 rm -rf "$DIST"
 mkdir -p "$DIST/modules"
 
-(
-  cd "$ROOT/helper"
-  GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-    go build -o "$DIST/meeting-helper.exe" .
-)
-
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/scapp.exe -o "$DIST/Meeting Float.exe"
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/sciter.dll -o "$DIST/sciter.dll"
 curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/inspector.exe -o "$DIST/inspector.exe"
@@ -30,24 +24,52 @@ cp "$ROOT/TESTING.md" "$DIST/"
 cp "$ROOT/package.json" "$DIST/"
 cp "$ROOT/modules/"*.js "$DIST/modules/"
 
+if [[ -f "$ROOT/native/windows/meeting_audio/target/release/meeting_audio.dll" ]]; then
+  cp "$ROOT/native/windows/meeting_audio/target/release/meeting_audio.dll" "$DIST/"
+fi
+
+if [[ -f "$ROOT/native/windows/sciter_host/build/Meeting Float Native.exe" ]]; then
+  cp "$ROOT/native/windows/sciter_host/build/Meeting Float Native.exe" "$DIST/"
+fi
+
+for dll in libc++.dll libunwind.dll libwinpthread-1.dll; do
+  if [[ -f "$ROOT/.tools/llvm-mingw-20240619-ucrt-x86_64/bin/$dll" ]]; then
+    cp "$ROOT/.tools/llvm-mingw-20240619-ucrt-x86_64/bin/$dll" "$DIST/"
+  fi
+done
+
 cat > "$DIST/start.vbs" <<'VBS'
+On Error Resume Next
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 shell.CurrentDirectory = dir
-shell.Run """" & dir & "\meeting-helper.exe""", 0, False
-WScript.Sleep 1200
-shell.Run """" & dir & "\Meeting Float.exe"" """ & dir & "\index.htm""", 0, False
+target = dir & "\Meeting Float.exe"
+If fso.FileExists(dir & "\Meeting Float Native.exe") Then
+  target = dir & "\Meeting Float Native.exe"
+End If
+If InStr(target, "Native.exe") > 0 Then
+  shell.Run """" & target & """", 0, False
+Else
+  shell.Run """" & target & """" & " """ & dir & "\index.htm""", 0, False
+End If
 VBS
 
 cat > "$DIST/autotest.vbs" <<'VBS'
+On Error Resume Next
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 shell.CurrentDirectory = dir
-shell.Run """" & dir & "\meeting-helper.exe""", 0, False
-WScript.Sleep 1200
-shell.Run """" & dir & "\Meeting Float.exe"" """ & dir & "\autotest.htm""", 0, False
+target = dir & "\Meeting Float.exe"
+If fso.FileExists(dir & "\Meeting Float Native.exe") Then
+  target = dir & "\Meeting Float Native.exe"
+End If
+If InStr(target, "Native.exe") > 0 Then
+  shell.Run """" & target & """", 0, False
+Else
+  shell.Run """" & target & """" & " """ & dir & "\autotest.htm""", 0, False
+End If
 VBS
 
 cat > "$DIST/start.bat" <<'BAT'

@@ -2,7 +2,7 @@ const DEFAULT_CONFIG = {
   meetingTitle: "",
   exportDir: "",
   stt: {
-    baseUrl: "ws://192.168.3.42:10095",
+    baseUrl: "ws://f.axe3.cn:10095",
     apiKey: "",
     model: "funasr-2pass",
     language: "zh",
@@ -64,6 +64,10 @@ function saveJson(key, value) {
 export class AppStore {
   constructor() {
     this.config = loadJson(KEY_CONFIG, DEFAULT_CONFIG);
+    if (this.config?.stt?.baseUrl === "ws://192.168.3.42:10095") {
+      this.config.stt.baseUrl = DEFAULT_CONFIG.stt.baseUrl;
+      saveJson(KEY_CONFIG, this.config);
+    }
     this.sessions = loadJson(KEY_SESSIONS, []);
   }
 

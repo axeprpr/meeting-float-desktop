@@ -1,4 +1,5 @@
 dist/
+.tools/
 runtime/
 *.zip
 *.exe
@@ -9,3 +10,8 @@ runtime/
 *.log
 probe-fs-use/
 __pycache__/
+.tmp-gocache/
+helper/.tmp-gocache/
+sciter-media-test.htm
+native/windows/meeting_audio/target/
+native/windows/sciter_host/build/

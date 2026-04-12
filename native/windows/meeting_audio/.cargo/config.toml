@@ -1,0 +1,7 @@
+[target.x86_64-pc-windows-gnu]
+linker = "C:/Users/root/Desktop/meeting-float-sciter/.tools/llvm-mingw-20240619-ucrt-x86_64/bin/x86_64-w64-mingw32-gcc.exe"
+ar = "C:/Users/root/Desktop/meeting-float-sciter/.tools/llvm-mingw-20240619-ucrt-x86_64/bin/x86_64-w64-mingw32-ar.exe"
+rustflags = [
+  "-Lnative=C:/Users/root/Desktop/meeting-float-sciter/.tools/llvm-mingw-20240619-ucrt-x86_64/x86_64-w64-mingw32/lib",
+  "-Lnative=C:/Users/root/Desktop/meeting-float-sciter/.tools/llvm-mingw-20240619-ucrt-x86_64/lib/clang/18/lib/windows",
+]

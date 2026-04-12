@@ -1,71 +1,114 @@
-const HELPER_URL = "http://127.0.0.1:17995";
-
-async function parseJson(response) {
-  const text = await response.text();
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("本地录音助手返回了无法识别的数据");
+function parseNativePayload(payload) {
+  if (!payload) return {};
+  if (typeof payload === "string") {
+    try {
+      return JSON.parse(payload);
+    } catch {
+      return { value: payload };
+    }
   }
+  return payload;
 }
 
-export class MeetingRecorder {
-  constructor() {
-    this.eventCursor = 0;
-    this.pollHandle = null;
-    this.onTranscript = null;
-    this.onPreview = null;
-    this.onEvent = null;
+function createXcallNativeBridge() {
+  const root = document?.documentElement;
+  if (!root || typeof root.xcall !== "function") return null;
+
+  const invoke = (name, payload) => {
+    if (payload === undefined) {
+      return root.xcall(name);
+    }
+    return root.xcall(name, payload);
+  };
+
+  return {
+    health() {
+      return invoke("meetingAudioHealth");
+    },
+    configure(payload) {
+      return invoke("meetingAudioConfigure", payload);
+    },
+    probe(payload) {
+      return invoke("meetingAudioProbe", payload);
+    },
+    start(payload) {
+      return invoke("meetingAudioStart", payload);
+    },
+    pause() {
+      return invoke("meetingAudioPause");
+    },
+    resume() {
+      return invoke("meetingAudioResume");
+    },
+    stop() {
+      return invoke("meetingAudioStop");
+    },
+    setListener() {},
+  };
+}
+
+function getNativeBridge() {
+  const bridge =
+    globalThis.meetingAudioNative ||
+    globalThis.MeetingAudioNative ||
+    globalThis.__MEETING_AUDIO_NATIVE__;
+
+  if (bridge && typeof bridge === "object") {
+    return bridge;
+  }
+
+  return createXcallNativeBridge();
+}
+
+class NativeMeetingRecorder {
+  constructor(nativeBridge) {
+    this.native = nativeBridge;
     this.running = false;
     this.paused = false;
     this.sttConfig = null;
+    this.backend = "native";
+    this.onTranscript = null;
+    this.onPreview = null;
+    this.onEvent = null;
+    this.boundListener = (payload) => this.handleNativeEvent(payload);
+    this.native.setListener?.(this.boundListener);
   }
 
-  async request(path, options = {}) {
-    let response;
-    try {
-      response = await fetch(`${HELPER_URL}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
-        ...options,
-      });
-    } catch (error) {
-      throw new Error("本地录音助手未启动");
-    }
-
-    const payload = await parseJson(response);
-    if (!response.ok) {
-      throw new Error(payload.error || "本地录音助手请求失败");
-    }
-    return payload;
+  decodeResult(payload) {
+    return parseNativePayload(payload);
   }
 
   async health() {
-    return this.request("/health");
+    const result = this.decodeResult(await this.native.health?.());
+    return {
+      status: result.status || (this.running ? "recording" : "idle"),
+      paused: Boolean(result.paused ?? this.paused),
+      last_error: result.last_error || "",
+      backend: "native",
+    };
   }
 
   async probe(sttConfig) {
-    return this.request("/probe", {
-      method: "POST",
-      body: JSON.stringify({
-        funasr_url: sttConfig.baseUrl,
-        language: sttConfig.language || "zh",
-      }),
-    });
+    return this.decodeResult(
+      await this.native.probe?.(
+        JSON.stringify({
+          funasr_url: sttConfig.baseUrl,
+          language: sttConfig.language || "zh",
+        })
+      )
+    );
   }
 
   async configure(sttConfig) {
     this.sttConfig = sttConfig;
-    return this.request("/config", {
-      method: "POST",
-      body: JSON.stringify({
-        funasr_url: sttConfig.baseUrl,
-        language: sttConfig.language || "zh",
-      }),
-    });
+    return this.decodeResult(
+      await this.native.configure?.(
+        JSON.stringify({
+          funasr_url: sttConfig.baseUrl,
+          language: sttConfig.language || "zh",
+        })
+      )
+    );
   }
 
   async start(chunkSeconds, onTranscript, onPreview, onEvent) {
@@ -77,35 +120,45 @@ export class MeetingRecorder {
     this.onPreview = onPreview;
     this.onEvent = onEvent;
     await this.configure(this.sttConfig);
-    await this.request("/record/start", {
-      method: "POST",
-      body: JSON.stringify({ chunk_seconds: chunkSeconds }),
-    });
+
+    const result = this.decodeResult(
+      await this.native.start?.(
+        JSON.stringify({
+          chunk_seconds: chunkSeconds,
+        })
+      )
+    );
+
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+
     this.running = true;
     this.paused = false;
-    this.startPolling();
   }
 
   async pause() {
-    await this.request("/record/pause", { method: "POST", body: "{}" });
+    const result = this.decodeResult(await this.native.pause?.());
+    if (result?.error) {
+      throw new Error(result.error);
+    }
     this.paused = true;
   }
 
   async resume() {
-    await this.request("/record/resume", {
-      method: "POST",
-      body: JSON.stringify({ chunk_seconds: 0 }),
-    });
+    const result = this.decodeResult(await this.native.resume?.());
+    if (result?.error) {
+      throw new Error(result.error);
+    }
     this.paused = false;
     this.running = true;
-    this.startPolling();
   }
 
   async stop() {
-    if (!this.running && !this.paused) return;
-    await this.request("/record/stop", { method: "POST", body: "{}" });
-    await this.pollEvents();
-    this.stopPolling();
+    const result = this.decodeResult(await this.native.stop?.());
+    if (result?.error) {
+      throw new Error(result.error);
+    }
     this.running = false;
     this.paused = false;
   }
@@ -118,32 +171,46 @@ export class MeetingRecorder {
     return this.running || this.paused;
   }
 
-  startPolling() {
-    this.stopPolling();
-    this.pollHandle = setInterval(() => {
-      this.pollEvents().catch(() => {});
-    }, 300);
-    this.pollEvents().catch(() => {});
-  }
+  async handleNativeEvent(payload) {
+    const item = this.decodeResult(payload);
+    if (!item?.type) return;
 
-  stopPolling() {
-    clearInterval(this.pollHandle);
-    this.pollHandle = null;
-  }
+    if (item.type === "preview") {
+      this.onPreview?.(item.text || "", item);
+      return;
+    }
 
-  async pollEvents() {
-    const payload = await this.request(`/events?since=${this.eventCursor}`);
-    this.eventCursor = payload.next_seq || this.eventCursor;
-    const events = payload.events || [];
+    if (item.type === "final_transcript" && item.text) {
+      await this.onTranscript?.(item.text, item);
+      return;
+    }
 
-    for (const item of events) {
-      if (item.type === "final_transcript" && item.text) {
-        await this.onTranscript?.(item.text, item);
-      } else if (item.type === "preview") {
-        this.onPreview?.(item.text || "", item);
-      } else {
-        this.onEvent?.(item);
+    if (item.type === "status") {
+      if (item.status === "recording") {
+        this.running = true;
+        this.paused = false;
+      } else if (item.status === "paused") {
+        this.running = false;
+        this.paused = true;
+      } else if (item.status === "idle" || item.status === "stopped") {
+        this.running = false;
+        this.paused = false;
       }
     }
+
+    if (item.type === "error") {
+      this.running = false;
+      this.paused = false;
+    }
+
+    this.onEvent?.(item);
   }
+}
+
+export function createMeetingRecorder() {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge) {
+    throw new Error("native recorder bridge is unavailable");
+  }
+  return new NativeMeetingRecorder(nativeBridge);
 }
