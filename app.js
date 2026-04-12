@@ -495,6 +495,27 @@ function handleTranscriptPreview(text) {
   renderTranscriptFocus();
 }
 
+function handleRecorderEvent(event) {
+  if (!event?.type) return;
+
+  if (event.type === "status" && event.text) {
+    setStatus(event.text);
+    return;
+  }
+
+  if (event.type === "error" && event.text) {
+    state.livePreviewText = "";
+    if (state.isRecording) {
+      state.isRecording = false;
+      stopTimerLoop();
+      stopSummaryLoop();
+      setDot("idle");
+    }
+    appendError(event.text);
+    renderAll();
+  }
+}
+
 async function generateSummary(force = false) {
   const session = state.session;
   if (!session) return;
@@ -635,7 +656,12 @@ async function startMeeting() {
       startMockFeed();
     } else {
       await recorder.configure(state.config.stt);
-      await recorder.start(state.config.chunkSeconds, handleTranscript, handleTranscriptPreview);
+      await recorder.start(
+        state.config.chunkSeconds,
+        handleTranscript,
+        handleTranscriptPreview,
+        handleRecorderEvent
+      );
     }
 
     startTimerLoop();

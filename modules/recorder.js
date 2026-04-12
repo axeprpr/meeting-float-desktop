@@ -16,6 +16,7 @@ export class MeetingRecorder {
     this.pollHandle = null;
     this.onTranscript = null;
     this.onPreview = null;
+    this.onEvent = null;
     this.running = false;
     this.paused = false;
     this.sttConfig = null;
@@ -67,13 +68,14 @@ export class MeetingRecorder {
     });
   }
 
-  async start(chunkSeconds, onTranscript, onPreview) {
+  async start(chunkSeconds, onTranscript, onPreview, onEvent) {
     if (!this.sttConfig?.baseUrl) {
       throw new Error("转写服务地址未配置");
     }
 
     this.onTranscript = onTranscript;
     this.onPreview = onPreview;
+    this.onEvent = onEvent;
     await this.configure(this.sttConfig);
     await this.request("/record/start", {
       method: "POST",
@@ -139,6 +141,8 @@ export class MeetingRecorder {
         await this.onTranscript?.(item.text, item);
       } else if (item.type === "preview") {
         this.onPreview?.(item.text || "", item);
+      } else {
+        this.onEvent?.(item);
       }
     }
   }

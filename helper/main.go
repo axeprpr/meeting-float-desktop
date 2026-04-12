@@ -335,6 +335,7 @@ type helper struct {
 	rec      *recorder
 	state    helperState
 	events   *eventStore
+	startSeq int64
 }
 
 func newHelper() *helper {
@@ -449,13 +450,23 @@ func (h *helper) startRecord(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.rec != nil {
+	if h.rec != nil || h.state.Status == "starting" {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "state": h.state})
+		h.mu.Unlock()
 		return
 	}
 
-	rec := newRecorder(h.cfg, h.events, func(text string) {
+	h.startSeq++
+	startSeq := h.startSeq
+	cfg := h.cfg
+	h.state.ChunkSeconds = req.ChunkSeconds
+	h.clearError()
+	h.setStatus("starting", false)
+	h.events.add("status", "正在启动录音...", "", false)
+	currentState := h.state
+	h.mu.Unlock()
+
+	rec := newRecorder(cfg, h.events, func(text string) {
 		h.mu.Lock()
 		h.state.Preview = text
 		h.state.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -471,22 +482,36 @@ func (h *helper) startRecord(w http.ResponseWriter, r *http.Request) {
 		h.setStatus("idle", false)
 	})
 
-	if err := rec.start(); err != nil {
-		h.setError(err.Error())
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
-		return
-	}
+	go func(startToken int64, next *recorder) {
+		if err := next.start(); err != nil {
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if startToken != h.startSeq {
+				return
+			}
+			h.setError(err.Error())
+			h.setStatus("idle", false)
+			return
+		}
 
-	h.rec = rec
-	h.state.ChunkSeconds = req.ChunkSeconds
-	h.clearError()
-	h.setStatus("recording", false)
-	h.events.add("status", "录音开始", "", false)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "state": h.state})
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if startToken != h.startSeq || h.state.Status != "starting" {
+			go next.stop()
+			return
+		}
+		h.rec = next
+		h.clearError()
+		h.setStatus("recording", false)
+		h.events.add("status", "录音开始", "", false)
+	}(startSeq, rec)
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "state": currentState})
 }
 
 func (h *helper) pauseRecord(w http.ResponseWriter, _ *http.Request) {
 	h.mu.Lock()
+	h.startSeq++
 	rec := h.rec
 	h.rec = nil
 	h.setStatus("paused", true)
@@ -506,6 +531,7 @@ func (h *helper) resumeRecord(w http.ResponseWriter, r *http.Request) {
 
 func (h *helper) stopRecord(w http.ResponseWriter, _ *http.Request) {
 	h.mu.Lock()
+	h.startSeq++
 	rec := h.rec
 	h.rec = nil
 	h.state.Preview = ""
