@@ -6,7 +6,7 @@ ManifestDPIAware True
 !define APP_VERSION "0.1.0"
 !endif
 !define APP_PUBLISHER "OpenAI Codex"
-!define APP_EXE "start.bat"
+!define APP_EXE "Meeting Float.exe"
 !define DIST_DIR "..\dist\win-x64"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
 
@@ -28,10 +28,10 @@ Section "Install"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   CreateDirectory "$SMPROGRAMS\Meeting Float"
-  CreateShortcut "$SMPROGRAMS\Meeting Float\Meeting Float.lnk" "$INSTDIR\start.bat"
-  CreateShortcut "$SMPROGRAMS\Meeting Float\Mock Autotest.lnk" "$INSTDIR\autotest.bat"
+  CreateShortcut "$SMPROGRAMS\Meeting Float\Meeting Float.lnk" "$INSTDIR\${APP_EXE}"
+  CreateShortcut "$SMPROGRAMS\Meeting Float\Mock Autotest.lnk" "$WINDIR\System32\wscript.exe" "$INSTDIR\Mock Autotest.vbs"
   CreateShortcut "$SMPROGRAMS\Meeting Float\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-  CreateShortcut "$DESKTOP\Meeting Float.lnk" "$INSTDIR\start.bat"
+  CreateShortcut "$DESKTOP\Meeting Float.lnk" "$INSTDIR\${APP_EXE}"
 
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${APP_NAME}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"

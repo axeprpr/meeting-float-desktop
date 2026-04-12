@@ -6,16 +6,17 @@ VERSION="${APP_VERSION:-$(node -p "require('$ROOT/package.json').version")}"
 DIST="$ROOT/dist/win-x64"
 ZIP="$ROOT/dist/meeting-float-sciter-v${VERSION}-win-x64.zip"
 
-mkdir -p "$DIST/runtime" "$DIST/modules" "$ROOT/dist"
+mkdir -p "$DIST/modules" "$ROOT/dist"
 rm -rf "$DIST"
-mkdir -p "$DIST/runtime" "$DIST/modules"
+mkdir -p "$DIST/modules"
 
-curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/scapp.exe -o "$DIST/runtime/scapp.exe"
-curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/sciter.dll -o "$DIST/runtime/sciter.dll"
-curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/inspector.exe -o "$DIST/runtime/inspector.exe"
+curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/scapp.exe -o "$DIST/Meeting Float.exe"
+curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/sciter.dll -o "$DIST/sciter.dll"
+curl -L https://raw.githubusercontent.com/c-smile/sciter-js-sdk/main/bin/windows/x64/inspector.exe -o "$DIST/inspector.exe"
 
 cp "$ROOT/index.htm" "$DIST/"
 cp "$ROOT/autotest.htm" "$DIST/"
+cp "$ROOT/minutes-window.htm" "$DIST/"
 cp "$ROOT/app.css" "$DIST/"
 cp "$ROOT/app.js" "$DIST/"
 cp "$ROOT/README.md" "$DIST/"
@@ -23,27 +24,20 @@ cp "$ROOT/TESTING.md" "$DIST/"
 cp "$ROOT/package.json" "$DIST/"
 cp "$ROOT/modules/"*.js "$DIST/modules/"
 
+cat > "$DIST/Mock Autotest.vbs" <<'VBS'
+Set shell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+dir = fso.GetParentFolderName(WScript.ScriptFullName)
+shell.CurrentDirectory = dir
+shell.Run """" & dir & "\Meeting Float.exe"" """ & dir & "\autotest.htm""", 0, False
+VBS
+
 cat > "$DIST/start.bat" <<'BAT'
 @echo off
-setlocal
-set DIR=%~dp0
-pushd "%DIR%"
-"%DIR%runtime\scapp.exe" "%DIR%index.htm"
-popd
-endlocal
+start "" "%~dp0Meeting Float.exe"
 BAT
 
-cat > "$DIST/autotest.bat" <<'BAT'
-@echo off
-setlocal
-set DIR=%~dp0
-pushd "%DIR%"
-"%DIR%runtime\scapp.exe" "%DIR%autotest.htm"
-popd
-endlocal
-BAT
-
-chmod 0644 "$DIST/start.bat" "$DIST/autotest.bat"
+chmod 0644 "$DIST/start.bat" "$DIST/Mock Autotest.vbs"
 
 rm -f "$ZIP"
 (

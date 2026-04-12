@@ -2,10 +2,10 @@
 <html
   window-frame="solid-with-shadow"
   window-title="Meeting Float"
-  window-width="448dip"
-  window-height="780dip"
-  window-min-width="404dip"
-  window-min-height="640dip"
+  window-width="700dip"
+  window-height="860dip"
+  window-min-width="560dip"
+  window-min-height="720dip"
   theme="light"
 >
   <head>
@@ -39,34 +39,29 @@
           if (statusLine) {
             statusLine.textContent = "启动失败，请看日志";
           }
-          const errorBox = document.querySelector("#liveFeedBox");
-          if (errorBox) {
-            errorBox.classList.add("error-box");
-            errorBox.textContent = String(error?.stack || error);
-          }
         });
     </script>
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
-        <div class="brand">
+        <div class="brand" role="window-caption">
           <div class="brand-mark"></div>
           <div class="brand-copy">
-            <div class="eyebrow">Meeting Console</div>
+            <div class="eyebrow">Enterprise Meeting Assistant</div>
             <h1>Meeting Float</h1>
             <p id="statusLine">待命</p>
           </div>
         </div>
         <div class="window-actions">
-          <button id="pinBtn" class="ghost compact">置顶</button>
-          <button id="hideBtn" class="ghost compact">托盘</button>
+          <button id="minimizeBtn" class="window-btn" title="最小化到托盘">_</button>
+          <button id="closeBtn" class="window-btn danger" title="关闭">×</button>
         </div>
       </header>
 
       <section class="view-switch">
         <button class="nav-chip active" data-view="overview">概览</button>
-        <button class="nav-chip" data-view="live">实时查看</button>
+        <button class="nav-chip" data-view="history">历史记录</button>
         <button class="nav-chip" data-view="settings">设置</button>
       </section>
 
@@ -90,99 +85,62 @@
         <section class="command-bar">
           <button id="startBtn" class="primary">开始会议</button>
           <button id="pauseBtn" class="secondary" disabled>暂停</button>
-          <button id="stopBtn" class="danger" disabled>结束</button>
+          <button id="stopBtn" class="danger" disabled>结束会议</button>
+          <button id="viewMinutesBtn" class="ghost" disabled>查看会议纪要</button>
         </section>
 
-        <section class="metric-grid">
-          <article class="metric-card">
-            <div class="metric-label">最新记录</div>
-            <div id="latestTranscriptPreview" class="metric-value metric-multiline">等待第一段转写</div>
-          </article>
-          <article class="metric-card accent">
-            <div class="metric-label">阶段总结</div>
-            <div id="latestSummaryPreview" class="metric-value metric-multiline">还没有总结</div>
-          </article>
-        </section>
-
-        <section class="panel live-feed-panel">
+        <section class="panel focus-panel">
           <div class="panel-head">
-            <h2>实时动态</h2>
-            <div class="panel-actions">
-              <button id="copyTranscriptBtn" class="ghost compact">复制记录</button>
+            <div class="focus-tabs">
+              <button id="summaryTabBtn" class="focus-tab active" data-focus="summary">
+                阶段总结
+              </button>
+              <button id="transcriptTabBtn" class="focus-tab" data-focus="transcript">
+                最新记录
+              </button>
             </div>
           </div>
-          <div id="liveFeedBox" class="scroll-box live-feed-box">
-            <div class="placeholder">会议开始后，这里显示最新转写与总结动态。</div>
+          <div id="summaryFocusBox" class="scroll-box focus-box">
+            <div class="placeholder">会议进行后，这里显示阶段性总结。</div>
+          </div>
+          <div id="transcriptFocusBox" class="scroll-box focus-box hidden">
+            <div class="placeholder">会议进行后，这里显示最新转写记录。</div>
           </div>
         </section>
 
-        <section class="panel minutes-quick-panel">
+        <section class="panel minutes-preview-panel">
           <div class="panel-head">
-            <h2>纪要速览</h2>
-            <div class="panel-actions">
-              <button id="generateMinutesBtn" class="ghost compact" disabled>生成纪要</button>
-              <button id="exportMinutesBtn" class="ghost compact" disabled>导出</button>
-            </div>
+            <h2>会议纪要</h2>
+            <div class="panel-caption">结束会议后会再次调用 LLM 生成正式纪要</div>
           </div>
           <div id="minutesPreviewBox" class="scroll-box minutes-preview-box">
-            <div class="placeholder">结束会议后自动生成，也可以手动重生成。</div>
-          </div>
-        </section>
-
-        <section class="panel history-panel">
-          <div class="panel-head">
-            <h2>历史会议</h2>
-            <div class="panel-actions">
-              <button id="refreshHistoryBtn" class="ghost compact">刷新</button>
-            </div>
-          </div>
-          <div class="history-toolbar">
-            <input id="historySearchInput" type="text" placeholder="搜索标题、纪要、转写" />
-            <select id="historyStatusSelect">
-              <option value="all">全部状态</option>
-              <option value="completed">已结束</option>
-              <option value="recording">录音中</option>
-            </select>
-            <select id="historySortSelect">
-              <option value="desc">最近优先</option>
-              <option value="asc">最早优先</option>
-              <option value="title">按标题</option>
-            </select>
-          </div>
-          <div id="historyListBox" class="scroll-box history-list-box">
-            <div class="placeholder">还没有历史会议。</div>
+            <div class="placeholder">纪要将在会议结束后生成。</div>
           </div>
         </section>
       </section>
 
-      <section id="liveView" class="page view-page hidden">
-        <section class="panel transcript-panel">
+      <section id="historyView" class="page view-page hidden">
+        <section class="panel history-panel">
           <div class="panel-head">
-            <h2>实时记录</h2>
+            <h2>历史记录</h2>
             <div class="panel-actions">
-              <button id="manualSummaryBtn" class="ghost compact" disabled>立即总结</button>
+              <button id="refreshHistoryBtn" class="ghost compact">刷新</button>
             </div>
           </div>
-          <div id="transcriptBox" class="scroll-box transcript-box">
-            <div class="placeholder">会议开始后，这里会持续出现转写结果。</div>
-          </div>
-        </section>
-
-        <section class="panel summary-panel">
-          <div class="panel-head">
-            <h2>阶段总结</h2>
-          </div>
-          <div id="summaryBox" class="scroll-box summary-box">
-            <div class="placeholder">总结会按设定间隔自动生成。</div>
-          </div>
-        </section>
-
-        <section class="panel minutes-panel">
-          <div class="panel-head">
-            <h2>完整纪要</h2>
-          </div>
-          <div id="minutesBox" class="scroll-box minutes-box">
-            <div class="placeholder">这里显示完整纪要正文。</div>
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>标题</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr>
+                  <td colspan="2" class="placeholder-cell">还没有历史会议。</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
       </section>
@@ -190,120 +148,63 @@
       <section id="settingsView" class="page view-page hidden">
         <section class="panel settings-hero">
           <div class="panel-head">
-            <h2>工作区设置</h2>
+            <h2>模型配置</h2>
             <div class="panel-actions">
-              <button id="testSttBtn" class="ghost compact">测 STT</button>
-              <button id="testLlmBtn" class="ghost compact">测 LLM</button>
-              <button id="testAllBtn" class="ghost compact">全测</button>
-              <button id="saveAndTestBtn" class="ghost compact">保存并测试</button>
-              <button id="mockConfigBtn" class="ghost compact">Mock 联调</button>
               <button id="saveConfigBtn" class="primary compact">保存配置</button>
             </div>
           </div>
-          <div class="settings-note">
-            配置 STT、LLM、总结频率和文风。真实录音尚需宿主桥接时，这里也能先走 mock 压流程。
-          </div>
           <div id="settingsSaveState" class="save-state">尚未保存本轮修改。</div>
-          <div id="settingsProbeState" class="save-state">还没有做连接测试。</div>
-          <div id="settingsModelCatalog" class="model-catalog">
-            <div class="placeholder">连接成功后，这里会显示可见模型。</div>
-          </div>
         </section>
 
         <section class="panel settings-panel">
           <div class="settings-group">
-            <div class="group-title">会议信息</div>
-            <label>
-              <span>会议标题</span>
-              <input id="meetingTitleInput" type="text" placeholder="例如：项目周会 / 客户复盘" />
-            </label>
-            <div class="grid two">
-              <label>
-                <span>导出目录</span>
-                <input id="exportDirInput" type="text" placeholder="默认是 ~/meeting-float-exports" />
-              </label>
-              <label>
-                <span>目录操作</span>
-                <button id="copyExportDirBtn" class="ghost compact">复制目录</button>
-              </label>
+            <div class="settings-group-head">
+              <div class="group-title">语音转文字 STT</div>
+              <button id="testSttBtn" class="ghost compact">测试</button>
             </div>
-          </div>
-
-          <div class="settings-group">
-            <div class="group-title">语音转文字</div>
+            <div id="sttProbeState" class="probe-state">还没有测试 STT。</div>
             <div class="grid two">
               <label>
-                <span>STT Base URL</span>
+                <span>Base URL</span>
                 <input id="sttBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
               </label>
               <label>
-                <span>STT Model</span>
+                <span>Model</span>
                 <input id="sttModelInput" type="text" placeholder="whisper-1" />
               </label>
             </div>
             <div class="grid two">
               <label>
-                <span>STT API Key</span>
+                <span>API Key</span>
                 <input id="sttApiKeyInput" type="password" placeholder="可为空" />
               </label>
               <label>
-                <span>语言</span>
+                <span>Language</span>
                 <input id="languageInput" type="text" placeholder="zh" />
               </label>
             </div>
           </div>
 
           <div class="settings-group">
-            <div class="group-title">大模型</div>
+            <div class="settings-group-head">
+              <div class="group-title">大语言模型 LLM</div>
+              <button id="testLlmBtn" class="ghost compact">测试</button>
+            </div>
+            <div id="llmProbeState" class="probe-state">还没有测试 LLM。</div>
             <div class="grid two">
               <label>
-                <span>LLM Base URL</span>
+                <span>Base URL</span>
                 <input id="llmBaseUrlInput" type="text" placeholder="https://api.example.com/v1" />
               </label>
               <label>
-                <span>LLM Model</span>
+                <span>Model</span>
                 <input id="llmModelInput" type="text" placeholder="gpt-4o-mini" />
               </label>
             </div>
-            <div class="grid two">
-              <label>
-                <span>LLM API Key</span>
-                <input id="llmApiKeyInput" type="password" placeholder="可为空" />
-              </label>
-              <label>
-                <span>分片秒数</span>
-                <input id="chunkSecondsInput" type="number" min="5" max="120" step="1" />
-              </label>
-            </div>
-            <div class="grid two">
-              <label>
-                <span>总结间隔(分钟)</span>
-                <input id="summaryIntervalInput" type="number" min="1" max="120" step="1" />
-              </label>
-              <label>
-                <span>系统提示语</span>
-                <input id="systemPromptInput" type="text" placeholder="控制总结与纪要的风格" />
-              </label>
-            </div>
-          </div>
-
-          <div class="settings-group">
-            <div class="group-title">输出风格</div>
             <label>
-              <span>总结风格</span>
-              <textarea id="summaryPromptInput" rows="4"></textarea>
+              <span>API Key</span>
+              <input id="llmApiKeyInput" type="password" placeholder="可为空" />
             </label>
-            <label>
-              <span>会议纪要风格</span>
-              <textarea id="minutesPromptInput" rows="5"></textarea>
-            </label>
-          </div>
-
-          <div class="settings-group">
-            <div class="group-title">环境状态</div>
-            <div id="settingsRuntimeState" class="runtime-state">
-              正在检测运行时能力...
-            </div>
           </div>
         </section>
       </section>

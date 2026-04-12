@@ -90,13 +90,13 @@ function buildMockMinutes(transcriptText) {
 export class AiClient {
   async probe(config) {
     if (isMockConfig(config)) {
-    return {
-      ok: true,
-      mode: "mock",
-      modelFound: true,
-      message: "mock://local 已启用",
-      models: [config.model || "mock-model"],
-    };
+      return {
+        ok: true,
+        mode: "mock",
+        modelFound: true,
+        message: "mock://local 已启用",
+        models: [config.model || "mock-model"],
+      };
     }
 
     if (!config.baseUrl || !config.model) {
@@ -194,6 +194,29 @@ export class AiClient {
         {
           role: "user",
           content: `${minutesPrompt}\n\n以下是完整会议内容：\n${transcriptText}`,
+        },
+      ],
+      config
+    );
+  }
+
+  async createTitle(transcriptText, minutesText, config, systemPrompt) {
+    if (isMockConfig(config)) {
+      const firstLine = minutesText
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line && !/^[一二三四五六七八九十]+、/.test(line));
+      return (firstLine || "会议记录整理").slice(0, 18);
+    }
+
+    return this.chat(
+      [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content:
+            "请基于以下会议内容生成一个正式、简洁、适合企业内部留档的中文会议标题，只输出标题本身，控制在 8 到 18 个汉字。\n\n" +
+            `会议纪要：\n${minutesText || "暂无"}\n\n会议原文：\n${transcriptText}`,
         },
       ],
       config
