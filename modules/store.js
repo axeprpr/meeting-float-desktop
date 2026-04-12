@@ -1,5 +1,6 @@
 const DEFAULT_CONFIG = {
   meetingTitle: "",
+  exportDir: "",
   stt: {
     baseUrl: "",
     apiKey: "",
@@ -79,18 +80,13 @@ export class AppStore {
     return clone(this.sessions);
   }
 
+  getSession(sessionId) {
+    const found = this.sessions.find((item) => item.id === sessionId);
+    return found ? clone(found) : null;
+  }
+
   saveSession(session) {
-    const summary = {
-      id: session.id,
-      title: session.title,
-      startedAt: session.startedAt,
-      endedAt: session.endedAt,
-      status: session.status,
-      transcriptCount: session.transcript.length,
-      summaryCount: session.summaries.length,
-      hasMinutes: Boolean(session.minutes),
-      data: clone(session),
-    };
+    const summary = this.buildSessionSummary(session);
 
     const index = this.sessions.findIndex((item) => item.id === session.id);
     if (index >= 0) {
@@ -103,8 +99,43 @@ export class AppStore {
     saveJson(KEY_SESSIONS, this.sessions);
   }
 
+  renameSession(sessionId, title) {
+    const index = this.sessions.findIndex((item) => item.id === sessionId);
+    if (index < 0) return null;
+
+    this.sessions[index].title = title;
+    if (this.sessions[index].data) {
+      this.sessions[index].data.title = title;
+    }
+    saveJson(KEY_SESSIONS, this.sessions);
+    return clone(this.sessions[index]);
+  }
+
+  deleteSession(sessionId) {
+    const index = this.sessions.findIndex((item) => item.id === sessionId);
+    if (index < 0) return false;
+
+    this.sessions.splice(index, 1);
+    saveJson(KEY_SESSIONS, this.sessions);
+    return true;
+  }
+
   exportMinutes(session) {
     return this.buildMarkdown(session);
+  }
+
+  buildSessionSummary(session) {
+    return {
+      id: session.id,
+      title: session.title,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      status: session.status,
+      transcriptCount: session.transcript.length,
+      summaryCount: session.summaries.length,
+      hasMinutes: Boolean(session.minutes),
+      data: clone(session),
+    };
   }
 
   buildMarkdown(session) {

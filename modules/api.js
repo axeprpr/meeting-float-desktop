@@ -88,6 +88,45 @@ function buildMockMinutes(transcriptText) {
 }
 
 export class AiClient {
+  async probe(config) {
+    if (isMockConfig(config)) {
+    return {
+      ok: true,
+      mode: "mock",
+      modelFound: true,
+      message: "mock://local 已启用",
+      models: [config.model || "mock-model"],
+    };
+    }
+
+    if (!config.baseUrl || !config.model) {
+      throw new Error("配置不完整");
+    }
+
+    const response = await fetch(joinUrl(config.baseUrl, "/models"), {
+      method: "GET",
+      headers: authHeaders(config.apiKey),
+    });
+
+    if (!response.ok) {
+      throw new Error(await parseError(response));
+    }
+
+    const payload = await response.json();
+    const models = Array.isArray(payload?.data) ? payload.data : [];
+    const modelFound = models.some((item) => item?.id === config.model);
+
+    return {
+      ok: true,
+      mode: "remote",
+      modelFound,
+      models: models.map((item) => item?.id).filter(Boolean),
+      message: modelFound
+        ? `已连接，模型 ${config.model} 可见`
+        : `已连接，但模型列表中未看到 ${config.model}`,
+    };
+  }
+
   async transcribe(blob, config) {
     if (isMockConfig(config)) {
       const text = MOCK_TRANSCRIPTS[mockTranscriptIndex % MOCK_TRANSCRIPTS.length];
