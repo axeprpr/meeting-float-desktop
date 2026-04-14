@@ -16,8 +16,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "test:integration": "node scripts/integration-check.mjs",
     "test:e2e": "node scripts/electron-e2e.mjs",
-    "pack": "npm run build && electron-builder --dir",
-    "dist:win": "npm run build && electron-builder --win nsis portable"
+    "pack": "npm run build && electron-builder --dir --publish never",
+    "dist:win": "npm run build && electron-builder --win nsis portable --publish never"
   },
   "dependencies": {
     "@radix-ui/react-tabs": "^1.1.13",
