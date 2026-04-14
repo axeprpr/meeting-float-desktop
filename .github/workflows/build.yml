@@ -51,7 +51,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: meeting-float-desktop-win-x64-v${{ steps.version.outputs.app_version }}
-          path: release/*
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -60,4 +63,7 @@ jobs:
         with:
           name: Meeting Float Desktop v${{ steps.version.outputs.app_version }}
           generate_release_notes: true
-          files: release/*
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
