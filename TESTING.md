@@ -1,38 +1,33 @@
-# 测试说明
+# Testing Notes
 
-这是当前的 Linux x64 测试版说明。
+## Basic Checks
 
-## 启动
+- Start the app with `npm run dev` or `npm start`
+- Verify microphone permission prompt appears
+- Verify tray minimize and restore
+- Verify settings save and reload
+- Verify mock flow can generate transcript, summaries, and minutes
+- Verify history sessions can be reopened
+- Verify minutes window opens correctly
 
-正式界面：
+## Build Check
 
 ```bash
-./start.sh
+npm run build
 ```
 
-自动联调：
+## Packaging Check
 
 ```bash
-./autotest.sh
+npm run pack
 ```
 
-## 当前已知结论
+```bash
+npm run dist:win
+```
 
-- 当前包内包含 Sciter Linux x64 运行时
-- UI、mock 流程、总结/纪要链路可测
-- 真实录音链路在当前这台机器上无法验证，因为：
-  - 系统没有可见录音设备
-  - 当前 runtime 不提供 `getUserMedia` / `MediaRecorder`
+## Current Limits
 
-## 测试重点
-
-- 界面布局是否符合预期
-- 悬浮窗和托盘交互
-- mock 流程是否通顺
-- 配置区、开始/暂停/结束、总结/纪要按钮是否符合你的使用习惯
-
-## 当前限制
-
-- 纪要导出现在是复制到剪贴板
-- 会话持久化现在走 `localStorage`
-- 真实录音需要后续接本地录音桥接
+- Real-time STT requires a reachable FunASR-compatible WebSocket endpoint
+- LLM summary/minutes/title features require a reachable OpenAI-compatible endpoint
+- Windows distribution now uses `electron-builder`

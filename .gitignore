@@ -1,4 +1,7 @@
 dist/
+release/
+node_modules/
+output/
 .tools/
 runtime/
 *.zip
@@ -8,10 +11,8 @@ runtime/
 *.db
 *.png
 *.log
+.DS_Store
 probe-fs-use/
 __pycache__/
 .tmp-gocache/
 helper/.tmp-gocache/
-sciter-media-test.htm
-native/windows/meeting_audio/target/
-native/windows/sciter_host/build/

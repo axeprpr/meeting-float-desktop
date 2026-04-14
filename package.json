@@ -1,6 +1,80 @@
 {
-  "name": "meeting-float-sciter",
-  "version": "0.1.4",
+  "name": "meeting-float-desktop",
+  "productName": "Meeting Float Desktop",
+  "version": "0.2.0",
+  "description": "Electron desktop meeting assistant with live transcript, summaries, and minutes generation.",
+  "author": "Axe Xu",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "build": "vite build",
+    "start": "electron .",
+    "icons": "node scripts/generate-icons.mjs",
+    "test:integration": "node scripts/integration-check.mjs",
+    "test:e2e": "node scripts/electron-e2e.mjs",
+    "pack": "npm run build && electron-builder --dir",
+    "dist:win": "npm run build && electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "@radix-ui/react-tabs": "^1.1.13",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.7",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.3.0",
+    "electron-builder": "^26.0.12",
+    "playwright": "^1.59.1",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.1.7",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.meetingfloat.desktop",
+    "productName": "Meeting Float Desktop",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "icon": "assets/icon.png",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "${productName}-${version}-${target}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    }
+  }
 }

@@ -14,68 +14,50 @@ permissions:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          go-version: "1.22"
+          node-version: 22
+          cache: npm
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nsis zip mingw-w64
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: Resolve version
+      - name: Resolve Version
         id: version
+        shell: pwsh
         run: |
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-          APP_VERSION="${{ github.ref_type == 'tag' && github.ref_name || '' }}"
-          if [ -z "${APP_VERSION}" ]; then
-            APP_VERSION="$PACKAGE_VERSION"
-          else
-            APP_VERSION="${APP_VERSION#v}"
-          fi
-          if [ "${{ github.ref_type }}" = "tag" ] && [ "$APP_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "Tag version v$APP_VERSION does not match package.json version $PACKAGE_VERSION" >&2
-            exit 1
-          fi
-          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
-          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
+          $refName = "${{ github.ref_name }}"
+          $appVersion = $packageVersion
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $appVersion = $refName.TrimStart('v')
+          }
+          if ("${{ github.ref_type }}" -eq "tag" -and $appVersion -ne $packageVersion) {
+            Write-Error "Tag version v$appVersion does not match package.json version $packageVersion"
+          }
+          "app_version=$appVersion" >> $env:GITHUB_OUTPUT
 
-      - name: Build Windows distribution
-        run: ./windows/build-win-dist.sh
+      - name: Build Windows Packages
+        run: npm run dist:win
 
-      - name: Build NSIS installer
-        run: |
-          cd windows
-          makensis -DAPP_VERSION=$APP_VERSION installer.nsi
-
-      - name: Upload artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: meeting-float-sciter-win-x64-v${{ steps.version.outputs.app_version }}
-          path: |
-            dist/meeting-float-sciter-v${{ steps.version.outputs.app_version }}-win-x64.zip
-            dist/Meeting-Float-${{ steps.version.outputs.app_version }}-Setup.exe
+          name: meeting-float-desktop-win-x64-v${{ steps.version.outputs.app_version }}
+          path: release/*
           if-no-files-found: error
 
-      - name: Create GitHub release
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Meeting Float v${{ steps.version.outputs.app_version }}
+          name: Meeting Float Desktop v${{ steps.version.outputs.app_version }}
           generate_release_notes: true
-          body: |
-            Windows build artifacts for Meeting Float v${{ steps.version.outputs.app_version }}.
-
-            Included files:
-            - `Meeting-Float-${{ steps.version.outputs.app_version }}-Setup.exe`
-            - `meeting-float-sciter-v${{ steps.version.outputs.app_version }}-win-x64.zip`
-          files: |
-            dist/meeting-float-sciter-v${{ steps.version.outputs.app_version }}-win-x64.zip
-            dist/Meeting-Float-${{ steps.version.outputs.app_version }}-Setup.exe
+          files: release/*

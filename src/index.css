@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #020617;
+  --color-foreground: #e2e8f0;
+  --color-card: #020617;
+  --color-card-foreground: #f8fafc;
+  --color-primary: #f8fafc;
+  --color-primary-foreground: #0f172a;
+  --color-secondary: #0f172a;
+  --color-secondary-foreground: #e2e8f0;
+  --color-muted: #0f172a;
+  --color-muted-foreground: #94a3b8;
+  --color-border: rgba(148, 163, 184, 0.18);
+  --color-input: rgba(148, 163, 184, 0.18);
+  --color-ring: rgba(56, 189, 248, 0.5);
+  --radius: 0.75rem;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  margin: 0;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at top, rgba(14, 165, 233, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
+}
+
+#root {
+  @apply h-screen;
+}
+
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.32) transparent;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: rgba(148, 163, 184, 0.24);
+  background-clip: padding-box;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.38);
+}
