@@ -50,7 +50,6 @@ function buildDefaultSession(title) {
     endedAt: "",
     endedAtLabel: "",
     transcript: [],
-    summaries: [],
     minutes: "",
     errors: [],
   };
@@ -100,9 +99,9 @@ function extractCompletedSentences(text) {
 
 function deriveSessionTitle(session) {
   if (session?.title) return session.title;
-  const latestSummary = session?.summaries?.[session.summaries.length - 1]?.content;
-  if (latestSummary) {
-    const firstLine = latestSummary.split("\n").map((line) => line.trim()).find(Boolean);
+  const minutesSummary = String(session?.minutes || "");
+  if (minutesSummary) {
+    const firstLine = minutesSummary.split("\n").map((line) => line.trim()).find(Boolean);
     if (firstLine) return compactText(firstLine, 22);
   }
   const firstTranscript = session?.transcript?.[0]?.text;
@@ -176,12 +175,6 @@ export function App() {
   const [mockPaused, setMockPaused] = useState(false);
   const [startedAtMs, setStartedAtMs] = useState(0);
   const [elapsedLabel, setElapsedLabel] = useState("00:00:00");
-  const [summaryTranscriptIndex, setSummaryTranscriptIndex] = useState(0);
-  const [summaryTask, setSummaryTask] = useState({
-    running: false,
-    progress: 0,
-    text: "",
-  });
   const [reportTask, setReportTask] = useState({
     running: false,
     progress: 0,
@@ -190,18 +183,14 @@ export function App() {
 
   const queueRef = useRef(Promise.resolve());
   const timerRef = useRef(null);
-  const summaryLoopRef = useRef(null);
   const mockFeedRef = useRef(null);
   const sessionRef = useRef(session);
   const recordingRef = useRef(isRecording);
   const configRef = useRef(config);
-  const summaryIndexRef = useRef(summaryTranscriptIndex);
   const mockPausedRef = useRef(mockPaused);
   const isMockModeRef = useRef(isMockMode);
   const pendingTranscriptRef = useRef("");
-  const summaryTaskRunningRef = useRef(false);
   const reportTaskRunningRef = useRef(false);
-  const summaryProgressTimerRef = useRef(null);
   const reportProgressTimerRef = useRef(null);
 
   useEffect(() => {
@@ -215,10 +204,6 @@ export function App() {
   useEffect(() => {
     configRef.current = config;
   }, [config]);
-
-  useEffect(() => {
-    summaryIndexRef.current = summaryTranscriptIndex;
-  }, [summaryTranscriptIndex]);
 
   useEffect(() => {
     mockPausedRef.current = mockPaused;
@@ -294,9 +279,7 @@ export function App() {
     return () => {
       disposed = true;
       clearInterval(timerRef.current);
-      clearInterval(summaryLoopRef.current);
       clearInterval(mockFeedRef.current);
-      clearInterval(summaryProgressTimerRef.current);
       clearInterval(reportProgressTimerRef.current);
     };
   }, []);
@@ -406,7 +389,6 @@ export function App() {
         model: "mock-llm",
       },
       chunkSeconds: 4,
-      summaryIntervalMinutes: 1,
     };
 
     await saveConfig(nextConfig);
@@ -433,30 +415,9 @@ export function App() {
     timerRef.current = null;
   }
 
-  function startSummaryLoop() {
-    clearInterval(summaryLoopRef.current);
-    summaryLoopRef.current = window.setInterval(() => {
-      const currentSession = sessionRef.current;
-      const currentConfig = configRef.current;
-      if (!currentSession) return;
-      if (isMockModeRef.current ? mockPausedRef.current : recorder.isPaused()) return;
-
-      const intervalMs = Number(currentConfig.summaryIntervalMinutes || 2.5) * 60 * 1000;
-      const elapsed = Date.now() - new Date(currentSession.startedAt).getTime();
-      if (elapsed > 0 && elapsed % intervalMs < 15000) {
-        generateSummary(false);
-      }
-    }, 15000);
-  }
-
-  function stopSummaryLoop() {
-    clearInterval(summaryLoopRef.current);
-    summaryLoopRef.current = null;
-  }
-
-  function createProgressController(kind, initialText) {
-    const timerRef = kind === "summary" ? summaryProgressTimerRef : reportProgressTimerRef;
-    const setTask = kind === "summary" ? setSummaryTask : setReportTask;
+  function createReportProgressController(initialText) {
+    const timerRef = reportProgressTimerRef;
+    const setTask = setReportTask;
 
     clearInterval(timerRef.current);
     let progress = 7;
@@ -603,53 +564,7 @@ export function App() {
       setIsRecording(false);
       recordingRef.current = false;
       stopTimerLoop();
-      stopSummaryLoop();
       appendError(event.text);
-    }
-  }
-
-  async function generateSummary(force = false) {
-    const currentSession = sessionRef.current;
-    const currentConfig = configRef.current;
-    if (!currentSession) return;
-
-    const newItems = currentSession.transcript.slice(summaryIndexRef.current);
-    const previousSummary = currentSession.summaries[currentSession.summaries.length - 1]?.content || "";
-    if (!force && newItems.length === 0) return;
-    if (newItems.length === 0) return;
-    if (summaryTaskRunningRef.current) return;
-
-    summaryTaskRunningRef.current = true;
-    const progress = createProgressController("summary", "阶段总结任务进行中...");
-
-    try {
-      setStatusLine("阶段总结任务已提交，后台处理中...");
-      const content = await api.summarize(
-        [
-          previousSummary ? `上一轮阶段总结：\n${previousSummary}` : "",
-          `本轮新增转写：\n${newItems.map((item) => `[${item.timeLabel}] ${item.text}`).join("\n")}`,
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
-        currentConfig.llm,
-        currentConfig.systemPrompt,
-        currentConfig.summaryPrompt
-      );
-
-      currentSession.summaries.push({
-        timeLabel: new Date().toLocaleTimeString(),
-        content,
-      });
-      setSummaryTranscriptIndex(currentSession.transcript.length);
-      summaryIndexRef.current = currentSession.transcript.length;
-      setStatusLine("阶段总结已更新");
-      await persistSession(currentSession);
-      progress.complete("阶段总结已完成");
-    } catch (error) {
-      progress.fail("阶段总结失败");
-      appendError(`生成总结失败: ${error.message || error}`);
-    } finally {
-      summaryTaskRunningRef.current = false;
     }
   }
 
@@ -732,8 +647,6 @@ export function App() {
     const nextSession = buildDefaultSession("会议进行中");
     sessionRef.current = nextSession;
     setSession(nextSession);
-    setSummaryTranscriptIndex(0);
-    summaryIndexRef.current = 0;
     const nextStartedAtMs = Date.now();
     setStartedAtMs(nextStartedAtMs);
     setIsRecording(true);
@@ -754,12 +667,10 @@ export function App() {
       }
 
       startTimerLoop(nextStartedAtMs);
-      startSummaryLoop();
       pendingTranscriptRef.current = "";
       setStatusLine(nextMockMode ? "Mock 会议进行中" : "录音进行中");
     } catch (error) {
       stopTimerLoop();
-      stopSummaryLoop();
       setIsRecording(false);
       recordingRef.current = false;
       setSession(null);
@@ -773,7 +684,6 @@ export function App() {
     if (!currentSession || !recordingRef.current) return;
 
     setStatusLine("正在结束会议...");
-    stopSummaryLoop();
     stopTimerLoop();
     setIsRecording(false);
     recordingRef.current = false;
@@ -786,7 +696,6 @@ export function App() {
 
     await flushPendingTranscript(true);
     await queueRef.current;
-    void generateSummary(false);
 
     currentSession.status = "completed";
     currentSession.endedAt = new Date().toISOString();
@@ -794,7 +703,7 @@ export function App() {
 
     await refreshBridgeState();
     await persistSession(currentSession);
-    setStatusLine("会议已结束，正在后台生成报告...");
+    setStatusLine("会议已结束，正在后台生成会议总结...");
     void generateReport(currentSession, configRef.current);
   }
 
@@ -803,20 +712,20 @@ export function App() {
     if (reportTaskRunningRef.current) return;
 
     reportTaskRunningRef.current = true;
-    const progress = createProgressController("report", "会议报告任务进行中...");
+    const progress = createReportProgressController("会议总结任务进行中...");
 
     try {
-      setStatusLine("会议报告任务已提交，后台处理中...");
-      progress.update("正在生成会议纪要...");
+      setStatusLine("会议总结任务已提交，后台处理中...");
+      progress.update("正在生成会议总结...");
       await generateMinutes(targetSession, targetConfig);
-      progress.update("正在生成报告标题...");
+      progress.update("正在生成总结标题...");
       await generateTitle(targetSession, targetConfig);
       await persistSession(targetSession);
-      progress.complete("会议报告已完成");
-      setStatusLine("会议已结束，报告已生成");
+      progress.complete("会议总结已完成");
+      setStatusLine("会议已结束，会议总结已生成");
     } catch (error) {
-      progress.fail("会议报告生成失败");
-      appendError(`生成纪要失败: ${error.message || error}`);
+      progress.fail("会议总结生成失败");
+      appendError(`生成会议总结失败: ${error.message || error}`);
     } finally {
       reportTaskRunningRef.current = false;
     }
@@ -889,13 +798,10 @@ export function App() {
     isMockModeRef.current = false;
     setMockPaused(false);
     mockPausedRef.current = false;
-    setSummaryTranscriptIndex(nextSession.transcript.length);
-    summaryIndexRef.current = nextSession.transcript.length;
     pendingTranscriptRef.current = "";
     const nextStartedAtMs = nextSession.startedAt ? new Date(nextSession.startedAt).getTime() : Date.now();
     setStartedAtMs(nextStartedAtMs);
     stopTimerLoop();
-    stopSummaryLoop();
     setActiveView("overview");
     setStatusLine(`已载入历史会话：${deriveSessionTitle(nextSession)}`);
     syncTimer(nextStartedAtMs);
@@ -916,8 +822,6 @@ export function App() {
       setSession(null);
       sessionRef.current = null;
       setElapsedLabel("00:00:00");
-      setSummaryTranscriptIndex(0);
-      summaryIndexRef.current = 0;
       pendingTranscriptRef.current = "";
     }
 
@@ -960,10 +864,9 @@ export function App() {
   const tone = sectionTone(isRecording, paused, Boolean(session), isMockMode);
   const sessionTitle = deriveSessionTitle(session || {});
   const sessionStats = session
-    ? `${session.transcript.length} 段转写 · ${session.summaries.length} 次总结`
-    : "0 段转写 · 0 次总结";
+    ? `${session.transcript.length} 段转写 · ${session.minutes ? "已生成会议总结" : "待生成会议总结"}`
+    : "0 段转写 · 待生成会议总结";
   const runtimeLabel = `${platform} · ${mediaSupport.message}`;
-  const summaries = session?.summaries || [];
   const transcripts = session?.transcript || [];
 
   if (!ready) {
@@ -1081,41 +984,22 @@ export function App() {
                   </Button>
                   <Button size="sm" variant="outline" onClick={openMinutesWindow} disabled={!session?.minutes} className="gap-2 rounded-xl px-3">
                     <FileText className="h-4 w-4" />
-                    {"\u67e5\u770b\u7eaa\u8981"}
+                    {"\u67e5\u770b\u4f1a\u8bae\u603b\u7ed3"}
                   </Button>
                 </div>
-                {summaryTask.running || reportTask.running ? (
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {summaryTask.running ? (
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
-                        <div className="mb-1 flex items-center justify-between text-xs text-slate-300">
-                          <span>阶段总结</span>
-                          <span>{Math.round(summaryTask.progress)}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                          <div
-                            className="h-full rounded-full bg-sky-400 transition-all duration-500"
-                            style={{ width: `${summaryTask.progress}%` }}
-                          />
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-400">{summaryTask.text}</div>
-                      </div>
-                    ) : null}
-                    {reportTask.running ? (
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
-                        <div className="mb-1 flex items-center justify-between text-xs text-slate-300">
-                          <span>会议报告</span>
-                          <span>{Math.round(reportTask.progress)}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                          <div
-                            className="h-full rounded-full bg-emerald-400 transition-all duration-500"
-                            style={{ width: `${reportTask.progress}%` }}
-                          />
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-400">{reportTask.text}</div>
-                      </div>
-                    ) : null}
+                {reportTask.running ? (
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+                    <div className="mb-1 flex items-center justify-between text-xs text-slate-300">
+                      <span>会议总结</span>
+                      <span>{Math.round(reportTask.progress)}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                        style={{ width: `${reportTask.progress}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-400">{reportTask.text}</div>
                   </div>
                 ) : null}
               </CardContent>
@@ -1127,13 +1011,13 @@ export function App() {
               <Card className="flex h-full min-h-0 flex-col border-slate-800/80 bg-slate-950/70">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">{"\u5b9e\u65f6\u9762\u677f"}</CardTitle>
-                  <CardDescription>{"\u53ea\u4fdd\u7559\u5b9e\u65f6\u8f6c\u5199\u4e0e\u9636\u6bb5\u603b\u7ed3\uff0c\u7eaa\u8981\u901a\u8fc7\u5f39\u7a97\u67e5\u770b\u3002"}</CardDescription>
+                  <CardDescription>{"\u53ea\u4fdd\u7559\u5b9e\u65f6\u8f6c\u5199\u4e0e\u4f1a\u8bae\u603b\u7ed3\u3002"}</CardDescription>
                 </CardHeader>
                 <CardContent className="min-h-0 flex-1">
                   <Tabs value={activeFocusTab} onValueChange={setActiveFocusTab} className="flex h-full min-h-0 flex-col">
                     <TabsList className="w-fit">
                       <TabsTrigger value="transcript">{"\u5b9e\u65f6\u8f6c\u5199"}</TabsTrigger>
-                      <TabsTrigger value="summary">{"\u9636\u6bb5\u603b\u7ed3"}</TabsTrigger>
+                      <TabsTrigger value="minutes">{"\u4f1a\u8bae\u603b\u7ed3"}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="transcript" className="mt-3 min-h-0 flex-1">
                       <div className="panel-scroll h-full space-y-3 overflow-auto pr-2">
@@ -1156,22 +1040,17 @@ export function App() {
                         )}
                       </div>
                     </TabsContent>
-                    <TabsContent value="summary" className="mt-3 min-h-0 flex-1">
+                    <TabsContent value="minutes" className="mt-3 min-h-0 flex-1">
                       <div className="panel-scroll h-full space-y-3 overflow-auto pr-2">
-                        {!summaries.length ? (
+                        {!session?.minutes ? (
                           <div className="rounded-xl border border-dashed border-slate-800 p-5 text-sm text-slate-400">
-                            {"\u4f1a\u8bae\u8fdb\u884c\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u9636\u6bb5\u603b\u7ed3\u3002"}
+                            {"\u4f1a\u8bae\u7ed3\u675f\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u4f1a\u8bae\u603b\u7ed3\u3002"}
                           </div>
                         ) : (
-                          summaries
-                            .slice()
-                            .reverse()
-                            .map((item, index) => (
-                              <div key={item.timeLabel + "-" + index} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                                <div className="mb-2 text-xs text-sky-300">{"\u9636\u6bb5\u603b\u7ed3"} {summaries.length - index} {"\u00b7"} {item.timeLabel}</div>
-                                <div className="whitespace-pre-wrap text-sm leading-6 text-slate-200">{item.content}</div>
-                              </div>
-                            ))
+                          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                            <div className="mb-2 text-xs text-sky-300">{"\u4f1a\u8bae\u603b\u7ed3"}</div>
+                            <div className="whitespace-pre-wrap text-sm leading-6 text-slate-200">{session.minutes}</div>
+                          </div>
                         )}
                       </div>
                     </TabsContent>

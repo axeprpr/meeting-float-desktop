@@ -69,7 +69,7 @@ function buildMockMinutes(transcriptText) {
     "二、核心结论",
     "1. 采用小型悬浮窗形态，支持托盘和跨平台运行。",
     "2. 语音转文字与大语言模型均通过可配置接口接入。",
-    "3. 会议过程要同时支持实时记录、阶段性总结和最终纪要输出。",
+    "3. 会议过程要支持实时记录和最终会议总结输出。",
     "",
     "三、决策事项",
     "1. 先完成主流程闭环，再补高可靠细节。",
@@ -208,7 +208,7 @@ export class AiClient {
           role: "user",
           content:
             "请基于以下会议内容生成一个正式、简洁、适合企业内部留档的中文会议标题，只输出标题本身，控制在 8 到 18 个汉字。\n\n" +
-            `会议纪要：\n${minutesText || "暂无"}\n\n会议原文：\n${transcriptText}`,
+            `会议总结：\n${minutesText || "暂无"}\n\n会议原文：\n${transcriptText}`,
         },
       ],
       config

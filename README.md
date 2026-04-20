@@ -1,58 +1,6 @@
 # Meeting Float Desktop
 
-Electron + React desktop meeting assistant with tray support, configurable STT/LLM backends, periodic summaries, and meeting minutes generation.
-
-## Current Architecture
-
-- `Electron` main process for window management, tray, persistence, and child windows
-- `React` renderer for the main window and minutes window
-- `shadcn/ui` component structure on top of Tailwind CSS
-- Browser audio capture in renderer, with direct WebSocket transport to FunASR-compatible STT
-- OpenAI-compatible LLM endpoints for summaries, minutes, and title generation
-
-## Main Features
-
-- Floating desktop window with tray minimize
-- Start, pause, resume, and stop meeting recording
-- Sentence-level transcript rendering
-- Periodic summary generation
-- Asynchronous summary/report generation with progress feedback
-- Session history persistence
-- Mock mode and local autotest flow
-
-## Project Structure
-
-- `electron/`: Electron main process and preload bridge
-- `src/`: React renderer, UI components, services, shared defaults
-- `index.html`: main renderer entry
-- `minutes.html`: minutes window entry
-- `vite.config.js`: Vite build config
-
-## Local Development
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run development mode:
-
-```bash
-npm run dev
-```
-
-Build renderer:
-
-```bash
-npm run build
-```
-
-Build distributable Electron packages for Windows:
-
-```bash
-npm run dist:win
-```
+中文说明见：[README.zh-CN.md](./README.zh-CN.md)
 
 ## OSS Downloads
 

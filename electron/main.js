@@ -22,12 +22,9 @@ const DEFAULT_CONFIG = {
     model: "gpt-4o-mini",
   },
   chunkSeconds: 20,
-  summaryIntervalMinutes: 2.5,
   systemPrompt: "你是一个严谨的会议助手，需要输出清晰、简洁、结构化的中文内容。",
-  summaryPrompt:
-    "请基于新增会议内容输出阶段性总结，至少包含：当前议题、关键结论、未决事项、后续行动和责任人。",
   minutesPrompt:
-    "请将完整会议内容整理成正式会议纪要，至少包含：会议主题、核心结论、决策事项、待办事项、风险与阻塞、下一步安排。",
+    "请将完整会议内容整理成正式会议总结，至少包含：会议主题、核心结论、决策事项、待办事项、风险与阻塞、下一步安排。",
 };
 
 let mainWindow = null;
@@ -108,8 +105,8 @@ function saveSession(sessionValue) {
     startedAt: sessionValue.startedAt,
     endedAt: sessionValue.endedAt,
     status: sessionValue.status,
-    transcriptCount: sessionValue.transcript.length,
-    summaryCount: sessionValue.summaries.length,
+    transcriptCount: Array.isArray(sessionValue.transcript) ? sessionValue.transcript.length : 0,
+    summaryCount: Array.isArray(sessionValue.summaries) ? sessionValue.summaries.length : 0,
     hasMinutes: Boolean(sessionValue.minutes),
     data: clone(sessionValue),
   };
