@@ -57,11 +57,12 @@ npm run dist:win
 ## OSS Downloads
 
 Release assets are mirrored to OSS by GitHub Actions on each `v*` tag.
+New builds use lowercase kebab-case artifact names.
 
 - Latest channel `latest.yml`: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/latest/latest.yml`
-- Version channel example (`v0.2.0`) setup: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-setup.exe`
-- Version channel example (`v0.2.0`) portable: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-portable.exe`
-- Version channel example (`v0.2.0`) blockmap: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-setup.exe.blockmap`
+- Version channel example (`v0.2.0`) setup: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/meeting-float-desktop-0.2.0-setup.exe`
+- Version channel example (`v0.2.0`) portable: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/meeting-float-desktop-0.2.0-portable.exe`
+- Version channel example (`v0.2.0`) blockmap: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/meeting-float-desktop-0.2.0-setup.exe.blockmap`
 - Version channel example (`v0.2.0`) metadata: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/latest.yml`
 
 Required repository secrets for OSS upload:

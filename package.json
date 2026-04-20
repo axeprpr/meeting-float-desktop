@@ -1,7 +1,7 @@
 {
   "name": "meeting-float-desktop",
   "productName": "Meeting Float Desktop",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Electron desktop meeting assistant with live transcript, summaries, and minutes generation.",
   "author": "Axe Xu",
   "repository": {
@@ -78,15 +78,15 @@
         "nsis",
         "portable"
       ],
-      "artifactName": "${productName}-${version}-${target}.${ext}"
+      "artifactName": "meeting-float-desktop-${version}-${target}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "meeting-float-desktop-${version}-portable.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-${version}-setup.${ext}"
+      "artifactName": "meeting-float-desktop-${version}-setup.${ext}"
     }
   }
 }
