@@ -54,6 +54,24 @@ Build distributable Electron packages for Windows:
 npm run dist:win
 ```
 
+## OSS Downloads
+
+Release assets are mirrored to OSS by GitHub Actions on each `v*` tag.
+
+- Latest channel `latest.yml`: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/latest/latest.yml`
+- Version channel example (`v0.2.0`) setup: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-setup.exe`
+- Version channel example (`v0.2.0`) portable: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-portable.exe`
+- Version channel example (`v0.2.0`) blockmap: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/Meeting.Float.Desktop-0.2.0-setup.exe.blockmap`
+- Version channel example (`v0.2.0`) metadata: `https://xuyayun.oss-cn-hangzhou.aliyuncs.com/claw/meeting-float-desktop/v0.2.0/latest.yml`
+
+Required repository secrets for OSS upload:
+
+- `ALIYUN_OSS_ENDPOINT`
+- `ALIYUN_OSS_BUCKET`
+- `ALIYUN_ACCESS_KEY_ID`
+- `ALIYUN_ACCESS_KEY_SECRET`
+- `ALIYUN_OSS_PREFIX` (optional, e.g. `claw`)
+
 Create an unpacked app directory only:
 
 ```bash
