@@ -1,7 +1,7 @@
 {
   "name": "meeting-float-desktop",
   "productName": "Meeting Float Desktop",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Electron desktop meeting assistant with live transcript, summaries, and minutes generation.",
   "author": "Axe Xu",
   "repository": {
