@@ -61,6 +61,43 @@ function compactText(text, max = 30) {
   return normalized.length > max ? `${normalized.slice(0, max)}...` : normalized;
 }
 
+const SENTENCE_END_RE = /[。！？!?；;]+(?:["'”’》】）)])?/g;
+
+function normalizeTranscriptText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function mergeTranscriptText(base, incoming) {
+  const left = normalizeTranscriptText(base);
+  const right = normalizeTranscriptText(incoming);
+  if (!right) return left;
+  if (!left) return right;
+  return `${left} ${right}`;
+}
+
+function extractCompletedSentences(text) {
+  const normalized = normalizeTranscriptText(text);
+  if (!normalized) {
+    return { complete: [], pending: "" };
+  }
+
+  const complete = [];
+  let cursor = 0;
+  SENTENCE_END_RE.lastIndex = 0;
+
+  for (let match = SENTENCE_END_RE.exec(normalized); match; match = SENTENCE_END_RE.exec(normalized)) {
+    const end = match.index + match[0].length;
+    const sentence = normalized.slice(cursor, end).trim();
+    if (sentence) complete.push(sentence);
+    cursor = end;
+  }
+
+  return {
+    complete,
+    pending: normalized.slice(cursor).trim(),
+  };
+}
+
 function deriveSessionTitle(session) {
   if (session?.title) return session.title;
   const latestSummary = session?.summaries?.[session.summaries.length - 1]?.content;
@@ -134,13 +171,22 @@ export function App() {
     message: "浏览器媒体链路待检测",
   });
   const [mediaProbeText, setMediaProbeText] = useState("");
-  const [livePreviewText, setLivePreviewText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
   const [mockPaused, setMockPaused] = useState(false);
   const [startedAtMs, setStartedAtMs] = useState(0);
   const [elapsedLabel, setElapsedLabel] = useState("00:00:00");
   const [summaryTranscriptIndex, setSummaryTranscriptIndex] = useState(0);
+  const [summaryTask, setSummaryTask] = useState({
+    running: false,
+    progress: 0,
+    text: "",
+  });
+  const [reportTask, setReportTask] = useState({
+    running: false,
+    progress: 0,
+    text: "",
+  });
 
   const queueRef = useRef(Promise.resolve());
   const timerRef = useRef(null);
@@ -152,6 +198,11 @@ export function App() {
   const summaryIndexRef = useRef(summaryTranscriptIndex);
   const mockPausedRef = useRef(mockPaused);
   const isMockModeRef = useRef(isMockMode);
+  const pendingTranscriptRef = useRef("");
+  const summaryTaskRunningRef = useRef(false);
+  const reportTaskRunningRef = useRef(false);
+  const summaryProgressTimerRef = useRef(null);
+  const reportProgressTimerRef = useRef(null);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -245,6 +296,8 @@ export function App() {
       clearInterval(timerRef.current);
       clearInterval(summaryLoopRef.current);
       clearInterval(mockFeedRef.current);
+      clearInterval(summaryProgressTimerRef.current);
+      clearInterval(reportProgressTimerRef.current);
     };
   }, []);
 
@@ -309,12 +362,18 @@ export function App() {
     setSessions(items);
   }
 
-  async function persistSession(nextSession) {
+  async function persistSession(nextSession, options = {}) {
     if (!nextSession) return;
+    const activeSessionId = sessionRef.current?.id;
     nextSession.title = deriveSessionTitle(nextSession);
     await store.saveSession(nextSession);
     await reloadSessions();
-    setSession(clone(nextSession));
+    const shouldSyncView =
+      typeof options.syncView === "boolean" ? options.syncView : activeSessionId === nextSession.id;
+    if (!shouldSyncView) return;
+    const snapshot = clone(nextSession);
+    setSession(snapshot);
+    sessionRef.current = snapshot;
   }
 
   async function saveConfig(nextConfigOverride) {
@@ -395,6 +454,69 @@ export function App() {
     summaryLoopRef.current = null;
   }
 
+  function createProgressController(kind, initialText) {
+    const timerRef = kind === "summary" ? summaryProgressTimerRef : reportProgressTimerRef;
+    const setTask = kind === "summary" ? setSummaryTask : setReportTask;
+
+    clearInterval(timerRef.current);
+    let progress = 7;
+    setTask({
+      running: true,
+      progress,
+      text: initialText,
+    });
+
+    timerRef.current = window.setInterval(() => {
+      progress = Math.min(94, progress + (progress < 40 ? 8 : progress < 75 ? 4 : 2));
+      setTask((current) => {
+        if (!current.running) return current;
+        return {
+          ...current,
+          progress,
+        };
+      });
+    }, 450);
+
+    return {
+      update(text) {
+        setTask((current) => {
+          if (!current.running) return current;
+          return {
+            ...current,
+            text,
+          };
+        });
+      },
+      complete(text) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        setTask((current) => ({
+          running: true,
+          progress: 100,
+          text: text || current.text,
+        }));
+        window.setTimeout(() => {
+          setTask((current) => {
+            if (!current.running || current.progress !== 100) return current;
+            return { running: false, progress: 0, text: "" };
+          });
+        }, 900);
+      },
+      fail(text) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        setTask({
+          running: false,
+          progress: 0,
+          text: "",
+        });
+        if (text) {
+          setStatusLine(text);
+        }
+      },
+    };
+  }
+
   function appendError(message) {
     const currentSession = sessionRef.current;
     if (currentSession) {
@@ -410,25 +532,63 @@ export function App() {
   async function handleTranscript(text) {
     if (!text || !sessionRef.current || !recordingRef.current) return;
 
+    pendingTranscriptRef.current = mergeTranscriptText(pendingTranscriptRef.current, text);
+    const { complete, pending } = extractCompletedSentences(pendingTranscriptRef.current);
+    pendingTranscriptRef.current = pending;
+    if (complete.length === 0) return;
+
     queueRef.current = queueRef.current.then(async () => {
       const currentSession = sessionRef.current;
       if (!currentSession) return;
 
-      currentSession.transcript.push({
-        timeLabel: new Date().toLocaleTimeString(),
-        text,
+      const now = new Date().toLocaleTimeString();
+      complete.forEach((sentence) => {
+        currentSession.transcript.push({
+          timeLabel: now,
+          text: sentence,
+        });
       });
 
-      setLivePreviewText("");
-      setStatusLine(isMockModeRef.current ? "Mock 转写进行中" : "已收到转写");
+      setStatusLine(isMockModeRef.current ? "Mock 转写进行中" : "已收到完整句转写");
       await persistSession(currentSession);
     });
 
     await queueRef.current;
   }
 
-  function handleTranscriptPreview(text) {
-    setLivePreviewText(text || "");
+  async function flushPendingTranscript(force = false) {
+    const currentSession = sessionRef.current;
+    if (!currentSession) return;
+
+    const source = pendingTranscriptRef.current;
+    if (!source) return;
+    const { complete, pending } = extractCompletedSentences(source);
+    const ready = force ? [...complete, pending].filter(Boolean) : complete;
+    pendingTranscriptRef.current = force ? "" : pending;
+    if (ready.length === 0) return;
+
+    queueRef.current = queueRef.current.then(async () => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+
+      const now = new Date().toLocaleTimeString();
+      ready.forEach((sentence) => {
+        activeSession.transcript.push({
+          timeLabel: now,
+          text: sentence,
+        });
+      });
+
+      await persistSession(activeSession);
+    });
+
+    await queueRef.current;
+  }
+
+  function handleTranscriptPreview() {
+    if (recordingRef.current) {
+      setStatusLine("语音识别中...");
+    }
   }
 
   function handleRecorderEvent(event) {
@@ -440,7 +600,6 @@ export function App() {
     }
 
     if (event.type === "error" && event.text) {
-      setLivePreviewText("");
       setIsRecording(false);
       recordingRef.current = false;
       stopTimerLoop();
@@ -458,9 +617,13 @@ export function App() {
     const previousSummary = currentSession.summaries[currentSession.summaries.length - 1]?.content || "";
     if (!force && newItems.length === 0) return;
     if (newItems.length === 0) return;
+    if (summaryTaskRunningRef.current) return;
+
+    summaryTaskRunningRef.current = true;
+    const progress = createProgressController("summary", "阶段总结任务进行中...");
 
     try {
-      setStatusLine("正在生成阶段总结...");
+      setStatusLine("阶段总结任务已提交，后台处理中...");
       const content = await api.summarize(
         [
           previousSummary ? `上一轮阶段总结：\n${previousSummary}` : "",
@@ -481,44 +644,43 @@ export function App() {
       summaryIndexRef.current = currentSession.transcript.length;
       setStatusLine("阶段总结已更新");
       await persistSession(currentSession);
+      progress.complete("阶段总结已完成");
     } catch (error) {
+      progress.fail("阶段总结失败");
       appendError(`生成总结失败: ${error.message || error}`);
+    } finally {
+      summaryTaskRunningRef.current = false;
     }
   }
 
-  async function generateMinutes() {
-    const currentSession = sessionRef.current;
-    const currentConfig = configRef.current;
-    if (!currentSession || currentSession.transcript.length === 0) return;
+  async function generateMinutes(targetSession = sessionRef.current, targetConfig = configRef.current) {
+    if (!targetSession || targetSession.transcript.length === 0) return;
 
-    setStatusLine("正在生成会议纪要...");
-    currentSession.minutes = await api.createMinutes(
-      plainTranscript(currentSession),
-      currentConfig.llm,
-      currentConfig.systemPrompt,
-      currentConfig.minutesPrompt
+    targetSession.minutes = await api.createMinutes(
+      plainTranscript(targetSession),
+      targetConfig.llm,
+      targetConfig.systemPrompt,
+      targetConfig.minutesPrompt
     );
-    await persistSession(currentSession);
+    await persistSession(targetSession);
   }
 
-  async function generateTitle() {
-    const currentSession = sessionRef.current;
-    const currentConfig = configRef.current;
-    if (!currentSession || currentSession.transcript.length === 0) return;
+  async function generateTitle(targetSession = sessionRef.current, targetConfig = configRef.current) {
+    if (!targetSession || targetSession.transcript.length === 0) return;
 
     try {
       const nextTitle = await api.createTitle(
-        plainTranscript(currentSession),
-        currentSession.minutes,
-        currentConfig.llm,
-        currentConfig.systemPrompt
+        plainTranscript(targetSession),
+        targetSession.minutes,
+        targetConfig.llm,
+        targetConfig.systemPrompt
       );
 
       if (nextTitle) {
-        currentSession.title = compactText(nextTitle.replace(/^["'“”]+|["'“”]+$/g, ""), 28);
+        targetSession.title = compactText(nextTitle.replace(/^["'“”]+|["'“”]+$/g, ""), 28);
       }
     } catch {
-      currentSession.title = deriveSessionTitle(currentSession);
+      targetSession.title = deriveSessionTitle(targetSession);
     }
   }
 
@@ -547,7 +709,6 @@ export function App() {
     const nextMockMode = mockModeEnabled(currentConfig);
     setIsMockMode(nextMockMode);
     isMockModeRef.current = nextMockMode;
-    setLivePreviewText("");
     await refreshBridgeState(currentConfig);
 
     try {
@@ -594,6 +755,7 @@ export function App() {
 
       startTimerLoop(nextStartedAtMs);
       startSummaryLoop();
+      pendingTranscriptRef.current = "";
       setStatusLine(nextMockMode ? "Mock 会议进行中" : "录音进行中");
     } catch (error) {
       stopTimerLoop();
@@ -602,7 +764,6 @@ export function App() {
       recordingRef.current = false;
       setSession(null);
       sessionRef.current = null;
-      setLivePreviewText("");
       appendError(`启动失败: ${error.message || error}`);
     }
   }
@@ -623,24 +784,42 @@ export function App() {
       await recorder.stop();
     }
 
+    await flushPendingTranscript(true);
     await queueRef.current;
-    await generateSummary(false);
+    void generateSummary(false);
 
     currentSession.status = "completed";
     currentSession.endedAt = new Date().toISOString();
     currentSession.endedAtLabel = new Date().toLocaleString();
 
-    try {
-      await generateMinutes();
-      await generateTitle();
-      setStatusLine("会议已结束，纪要已生成");
-    } catch (error) {
-      appendError(`生成纪要失败: ${error.message || error}`);
-    }
-
-    setLivePreviewText("");
     await refreshBridgeState();
     await persistSession(currentSession);
+    setStatusLine("会议已结束，正在后台生成报告...");
+    void generateReport(currentSession, configRef.current);
+  }
+
+  async function generateReport(targetSession = sessionRef.current, targetConfig = configRef.current) {
+    if (!targetSession || targetSession.transcript.length === 0) return;
+    if (reportTaskRunningRef.current) return;
+
+    reportTaskRunningRef.current = true;
+    const progress = createProgressController("report", "会议报告任务进行中...");
+
+    try {
+      setStatusLine("会议报告任务已提交，后台处理中...");
+      progress.update("正在生成会议纪要...");
+      await generateMinutes(targetSession, targetConfig);
+      progress.update("正在生成报告标题...");
+      await generateTitle(targetSession, targetConfig);
+      await persistSession(targetSession);
+      progress.complete("会议报告已完成");
+      setStatusLine("会议已结束，报告已生成");
+    } catch (error) {
+      progress.fail("会议报告生成失败");
+      appendError(`生成纪要失败: ${error.message || error}`);
+    } finally {
+      reportTaskRunningRef.current = false;
+    }
   }
 
   async function togglePause() {
@@ -712,6 +891,7 @@ export function App() {
     mockPausedRef.current = false;
     setSummaryTranscriptIndex(nextSession.transcript.length);
     summaryIndexRef.current = nextSession.transcript.length;
+    pendingTranscriptRef.current = "";
     const nextStartedAtMs = nextSession.startedAt ? new Date(nextSession.startedAt).getTime() : Date.now();
     setStartedAtMs(nextStartedAtMs);
     stopTimerLoop();
@@ -735,10 +915,10 @@ export function App() {
     if (sessionRef.current?.id === sessionId) {
       setSession(null);
       sessionRef.current = null;
-      setLivePreviewText("");
       setElapsedLabel("00:00:00");
       setSummaryTranscriptIndex(0);
       summaryIndexRef.current = 0;
+      pendingTranscriptRef.current = "";
     }
 
     await reloadSessions();
@@ -904,6 +1084,40 @@ export function App() {
                     {"\u67e5\u770b\u7eaa\u8981"}
                   </Button>
                 </div>
+                {summaryTask.running || reportTask.running ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {summaryTask.running ? (
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+                        <div className="mb-1 flex items-center justify-between text-xs text-slate-300">
+                          <span>阶段总结</span>
+                          <span>{Math.round(summaryTask.progress)}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-sky-400 transition-all duration-500"
+                            style={{ width: `${summaryTask.progress}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-400">{summaryTask.text}</div>
+                      </div>
+                    ) : null}
+                    {reportTask.running ? (
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+                        <div className="mb-1 flex items-center justify-between text-xs text-slate-300">
+                          <span>会议报告</span>
+                          <span>{Math.round(reportTask.progress)}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                            style={{ width: `${reportTask.progress}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-400">{reportTask.text}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           )}
@@ -923,18 +1137,12 @@ export function App() {
                     </TabsList>
                     <TabsContent value="transcript" className="mt-3 min-h-0 flex-1">
                       <div className="panel-scroll h-full space-y-3 overflow-auto pr-2">
-                        {!transcripts.length && !livePreviewText ? (
+                        {!transcripts.length ? (
                           <div className="rounded-xl border border-dashed border-slate-800 p-5 text-sm text-slate-400">
                             {"\u4f1a\u8bae\u5f00\u59cb\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u5b9e\u65f6\u8f6c\u5199\u3002"}
                           </div>
                         ) : (
                           <>
-                            {livePreviewText ? (
-                              <div className="rounded-xl border border-sky-900/60 bg-sky-950/30 p-4">
-                                <div className="mb-2 text-xs text-sky-300">{"\u5b9e\u65f6\u9884\u89c8"}</div>
-                                <div className="text-sm leading-6 text-slate-200">{livePreviewText}</div>
-                              </div>
-                            ) : null}
                             {transcripts
                               .slice(-12)
                               .reverse()

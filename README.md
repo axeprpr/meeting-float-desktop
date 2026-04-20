@@ -14,9 +14,9 @@ Electron + React desktop meeting assistant with tray support, configurable STT/L
 
 - Floating desktop window with tray minimize
 - Start, pause, resume, and stop meeting recording
-- Live transcript preview
+- Sentence-level transcript rendering
 - Periodic summary generation
-- Final meeting minutes generation
+- Asynchronous summary/report generation with progress feedback
 - Session history persistence
 - Mock mode and local autotest flow
 
