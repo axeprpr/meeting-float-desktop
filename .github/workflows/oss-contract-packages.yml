@@ -119,7 +119,10 @@ jobs:
           elif operation == "complete":
               for item in payload:
                   key = object_key(item["key"])
-                  parts = [oss2.models.PartInfo(int(p["part_number"]), p["etag"]) for p in item["parts"]]
+                  parts = [
+                      oss2.models.PartInfo(int(part["part_number"]), part["etag"].strip('"'))
+                      for part in item["parts"]
+                  ]
                   bucket.complete_multipart_upload(key, item["upload_id"], parts)
                   print(f"completed {key}")
           else:
