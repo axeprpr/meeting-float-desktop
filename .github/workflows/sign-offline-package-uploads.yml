@@ -1,0 +1,78 @@
+name: Sign offline package uploads
+
+on:
+  workflow_dispatch:
+    inputs:
+      keys_json:
+        description: JSON array of relative OSS object keys
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Generate limited upload URLs
+        env:
+          ALIYUN_OSS_ENDPOINT: ${{ secrets.ALIYUN_OSS_ENDPOINT }}
+          ALIYUN_OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
+          ALIYUN_ACCESS_KEY_ID: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          ALIYUN_OSS_PREFIX: ${{ secrets.ALIYUN_OSS_PREFIX }}
+          KEYS_JSON: ${{ inputs.keys_json }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet oss2
+          python <<'PY'
+          import json
+          import os
+          from pathlib import PurePosixPath
+
+          import oss2
+
+          keys = json.loads(os.environ["KEYS_JSON"])
+          if not isinstance(keys, list) or not 1 <= len(keys) <= 100:
+              raise SystemExit("keys_json must contain 1-100 keys")
+
+          prefix = os.environ.get("ALIYUN_OSS_PREFIX", "").strip().strip("/")
+          endpoint = os.environ["ALIYUN_OSS_ENDPOINT"].strip()
+          bucket_name = os.environ["ALIYUN_OSS_BUCKET"].strip()
+          auth = oss2.Auth(
+              os.environ["ALIYUN_ACCESS_KEY_ID"].strip(),
+              os.environ["ALIYUN_ACCESS_KEY_SECRET"].strip(),
+          )
+          bucket = oss2.Bucket(auth, f"https://{endpoint}", bucket_name)
+
+          results = []
+          for relative_key in keys:
+              if not isinstance(relative_key, str):
+                  raise SystemExit("every key must be a string")
+              path = PurePosixPath(relative_key)
+              if path.is_absolute() or ".." in path.parts or not path.parts:
+                  raise SystemExit(f"invalid key: {relative_key}")
+              key = "/".join(filter(None, (prefix, "ai-delivery", str(path))))
+              results.append({
+                  "relative_key": relative_key,
+                  "key": key,
+                  "upload_url": bucket.sign_url("PUT", key, 86400, slash_safe=True),
+                  "download_url": f"https://{bucket_name}.{endpoint}/{key}",
+              })
+
+          with open("signed-upload-urls.json", "w", encoding="utf-8") as output:
+              json.dump(results, output, ensure_ascii=False, indent=2)
+          PY
+
+      - name: Upload signed URL manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-upload-urls
+          path: signed-upload-urls.json
+          retention-days: 1
